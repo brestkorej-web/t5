@@ -111,13 +111,13 @@
     <div id="fuelSrc">нет данных</div>
   </div>
   <div id="aiCard" class="card" style="display:none">
-    <div style="font-size:13px;font-weight:800;color:var(--accent);letter-spacing:.08em;margin-bottom:6px">CLAUDE</div>
+    <div style="font-size:13px;font-weight:800;color:var(--accent);letter-spacing:.08em;margin-bottom:6px">ПОМОЩНИЦА</div>
     <div class="q" id="aiQ"></div><div class="a" id="aiA"></div>
     <button id="navBtn" class="primary" style="display:none;margin-top:12px;width:100%">Открыть в Яндекс Навигаторе</button>
   </div>
   <div class="grid" id="gauges"></div>
 </section>
-<button id="askBtn" aria-label="Спросить Claude">🎤</button>
+<button id="askBtn" aria-label="Голосовая команда">🎤</button>
 
 <!-- ERRORS -->
 <section id="tab-dtc" class="tab">
@@ -162,16 +162,33 @@
     <select id="setVoice"><option value="1">Включено</option><option value="0">Выключено</option></select>
   </div>
   <div class="card">
-    <div style="font-size:20px;font-weight:800">Claude (ИИ-помощник)</div>
-    <label>Ключ API Anthropic</label>
-    <input id="setKey" type="password" placeholder="sk-ant-..." autocomplete="off">
-    <div class="note" style="margin-top:6px">Ключ хранится только на этом устройстве. Получить: console.anthropic.com → API Keys.</div>
-    <label>Модель</label>
-    <select id="setModel">
-      <option value="claude-haiku-5-5">Haiku — быстро и дёшево</option>
-      <option value="claude-sonnet-5-5">Sonnet — умнее</option>
+    <div style="font-size:20px;font-weight:800">ИИ-помощник (необязательно)</div>
+    <div class="note" style="margin-top:6px">Без ИИ работают голосовые команды: «сколько топлива», «на сколько хватит», «температура», «наддув», «напряжение», «ошибки», «поехали на …». ИИ нужен только для свободных вопросов.</div>
+    <label>ИИ</label>
+    <select id="setProvider">
+      <option value="none">Без ИИ — только команды</option>
+      <option value="gemini">Google Gemini — бесплатный ключ</option>
+      <option value="claude">Claude — платный API</option>
     </select>
-    <button id="btnTestAi" style="margin-top:12px;width:100%">Проверить Claude</button>
+    <div id="gemBox">
+      <label>Ключ Gemini</label>
+      <input id="setGemKey" type="password" placeholder="AIza..." autocomplete="off">
+      <label>Модель Gemini</label>
+      <input id="setGemModel" type="text">
+      <div class="note" style="margin-top:6px">Ключ бесплатно: aistudio.google.com → Get API key, без карты. На бесплатном тарифе Google может использовать запросы для обучения.</div>
+    </div>
+    <div id="claBox">
+      <label>Ключ API Anthropic</label>
+      <input id="setKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+      <label>Модель</label>
+      <select id="setModel">
+        <option value="claude-haiku-5-5">Haiku — быстро и дёшево</option>
+        <option value="claude-sonnet-5-5">Sonnet — умнее</option>
+      </select>
+      <div class="note" style="margin-top:6px">Получить ключ: console.anthropic.com → API Keys.</div>
+    </div>
+    <div class="note" style="margin-top:6px">Ключи хранятся только на этом устройстве.</div>
+    <button id="btnTestAi" style="margin-top:12px;width:100%">Проверить ИИ</button>
     <div id="aiTest" class="note" style="margin-top:8px"></div>
   </div>
   <div class="card">
@@ -204,7 +221,7 @@
 <script>
 "use strict";
 /* ---------------- Settings ---------------- */
-const DEF = {tank:80, low:12, fuelSrc:"auto", voice:"1", voiceName:"", greet:"1", key:"", model:"claude-haiku-5-5"};
+const DEF = {tank:80, low:12, fuelSrc:"auto", voice:"1", voiceName:"", greet:"1", key:"", model:"claude-haiku-5-5", provider:"none", gemKey:"", gemModel:"gemini-flash-latest"};
 let S = Object.assign({}, DEF);
 try { Object.assign(S, JSON.parse(localStorage.getItem("t5set") || "{}")); } catch(e) {}
 function saveS(){ try{ localStorage.setItem("t5set", JSON.stringify(S)); }catch(e){} }
@@ -218,6 +235,11 @@ $("setVoice").onchange = e => { S.voice = e.target.value; saveS(); };
 $("setGreet").value = S.greet; $("setGreet").onchange = e => { S.greet = e.target.value; saveS(); };
 $("setKey").value = S.key; $("setKey").onchange = e => { S.key = e.target.value.trim(); saveS(); };
 $("setModel").value = S.model; $("setModel").onchange = e => { S.model = e.target.value; saveS(); };
+$("setGemKey").value = S.gemKey; $("setGemKey").onchange = e => { S.gemKey = e.target.value.trim(); saveS(); };
+$("setGemModel").value = S.gemModel; $("setGemModel").onchange = e => { S.gemModel = e.target.value.trim() || DEF.gemModel; saveS(); };
+function provUi(){ $("gemBox").style.display = S.provider === "gemini" ? "block" : "none"; $("claBox").style.display = S.provider === "claude" ? "block" : "none"; $("btnTestAi").style.display = S.provider === "none" ? "none" : "block"; }
+$("setProvider").value = S.provider; provUi();
+$("setProvider").onchange = e => { S.provider = e.target.value; saveS(); provUi(); };
 
 /* ---------------- Tabs ---------------- */
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
@@ -702,6 +724,29 @@ function systemPrompt(){
 Если Дмитрий просит поехать куда-то или проложить маршрут — ответь коротко и добавь в самом конце отдельную строку [NAV: адрес или место].
 Если вопрос требует внимания к экрану или опасен за рулём — предложи сделать это на остановке.`;
 }
+function aiReady(){ return (S.provider === "claude" && S.key) || (S.provider === "gemini" && S.gemKey); }
+async function askAI(q){
+  if (S.provider === "gemini") return askGemini(q);
+  if (S.provider === "claude") return askClaude(q);
+  throw new Error("ИИ выключен");
+}
+async function askGemini(q){
+  if (!S.gemKey) throw new Error("нет ключа Gemini — добавь его в Настройках");
+  aiHistory.push({role:"user", content:q}); aiHistory = aiHistory.slice(-10); if (aiHistory[0].role !== "user") aiHistory.shift();
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.gemModel)}:generateContent`, {
+    method: "POST", headers: {"content-type":"application/json", "x-goog-api-key": S.gemKey},
+    body: JSON.stringify({system_instruction: {parts: [{text: systemPrompt()}]},
+      contents: aiHistory.map(m => ({role: m.role === "assistant" ? "model" : "user", parts: [{text: m.content}]})),
+      generationConfig: {maxOutputTokens: 400}})
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { aiHistory.pop(); const m = (j.error && j.error.message) || ("HTTP " + r.status);
+    throw new Error(r.status === 429 ? "исчерпан бесплатный лимит, попробуй позже" : r.status === 404 ? "модель не найдена — проверь название модели" : m); }
+  const c = j.candidates && j.candidates[0];
+  const text = ((c && c.content && c.content.parts) || []).map(p => p.text || "").join("").trim() || "Не получилось ответить.";
+  aiHistory.push({role:"assistant", content:text});
+  return text;
+}
 async function askClaude(q){
   if (!S.key) throw new Error("нет ключа API — добавь его в Настройках");
   aiHistory.push({role:"user", content:q});
@@ -725,6 +770,32 @@ function openNav(place){
   b.onclick = () => { location.href = url; };
   try { location.href = url; } catch(e){}
 }
+function num(v){ return v == null ? null : parseFloat(String(v).replace(",", ".")); }
+function gv(pid){ const d = gEls[pid]; return d && !d.classList.contains("na") ? d.querySelector(".v").firstChild.textContent : null; }
+const NAV_RE = /(?:поехали|поедем|едем|езжай|маршрут|проложи(?:\s+маршрут)?|навигатор|отвези|вези)\s*(?:до|на|в|во|к|ко)?\s+(.+)/i;
+async function localCommand(q, afterGreet){
+  const t = q.toLowerCase();
+  const nav = q.match(NAV_RE);
+  if (nav) return {say: "Открываю навигатор: " + nav[1], nav: nav[1]};
+  if (/помощь|что ты умеешь|команды/.test(t)) return {say: "Я умею говорить уровень топлива и запас хода, температуру, наддув, напряжение, читать ошибки двигателя и открывать навигатор. Скажи, например: поехали на Ленина десять."};
+  if (/хватит|проед|запас/.test(t)) return {say: fuel.l == null ? "Уровень топлива пока не прочитан." : `Топлива ${Math.round(fuel.l)} литров, при расходе около девяти литров хватит примерно на ${Math.round(fuel.l / 9 * 100)} километров.`};
+  if (/топлив|бензин|солярк|дизел|бак|заправ/.test(t)) return {say: fuel.l == null ? "Уровень топлива пока не прочитан." : `Топлива ${Math.round(fuel.l)} литров, это ${Math.round(fuel.pct)} процентов бака.` + (fuel.l <= S.low ? " Пора на заправку." : "")};
+  if (/температур|прогре|горяч|холодн/.test(t)) { const c = gv("05"); return {say: c == null ? "Температура двигателя пока не прочитана." : `Температура двигателя ${c} градусов.` + (num(c) < 60 ? " Двигатель ещё не прогрет." : num(c) > 105 ? " Это много, следи за перегревом." : " Всё в норме.")}; }
+  if (/наддув|турбин/.test(t)) { const b = gv("BOOST"); return {say: b == null ? "Наддув не читается." : `Наддув ${b} бара.`}; }
+  if (/напряжени|аккумулятор|акб|зарядк/.test(t)) { const v = gv("42"); return {say: v == null ? "Напряжение не читается." : `Напряжение ${v} вольт.` + (num(v) < 12.2 ? " Низковато, проверь аккумулятор или генератор." : "")}; }
+  if (/оборот/.test(t)) { const v = gv("0C"); return {say: v == null ? "Обороты не читаются." : `${v} оборотов в минуту.`}; }
+  if (/ошибк|чек|check/.test(t)) {
+    if (!polling && !demo) return {say: "Сканер не подключён."};
+    $("dtcModule").value = "obd"; await readDtc();
+    const n = lastDtc ? lastDtc.codes.length : 0;
+    return {say: n ? `В двигателе ошибок: ${n}. ` + lastDtc.codes.map(c => c.code.split("").join(" ")).join(", ") + ". Подробности на вкладке Ошибки." : "Ошибок в двигателе нет."};
+  }
+  if (afterGreet) {
+    if (/никуда|не знаю|потом|отмена|нет$/.test(t)) return {say: "Хорошо. Если что, нажми на микрофон."};
+    if (!aiReady()) return {say: "Открываю навигатор: " + q, nav: q.replace(/^(на|в|во|к|до)\s+/i, "")};
+  }
+  return null;
+}
 function showAi(q, a){ $("aiCard").style.display = "block"; $("aiQ").textContent = q ? "«" + q + "»" : ""; $("aiA").textContent = a; }
 async function converse(prefill){
   if (aiBusy) return; aiBusy = true; unlockAudio();
@@ -734,9 +805,12 @@ async function converse(prefill){
     btn.className = "listening"; showAi("", "Слушаю…"); $("navBtn").style.display = "none";
     const q = await listen();
     if (!q) { showAi("", "Не расслышала. Нажми и скажи ещё раз."); return; }
+    const loc = await localCommand(q, !!prefill);
+    if (loc) { showAi(q, loc.say); await speak(loc.say); if (loc.nav) openNav(loc.nav); return; }
+    if (!aiReady()) { const m = "Не поняла команду. Скажи «помощь», чтобы узнать, что я умею."; showAi(q, m); await speak(m); return; }
     btn.className = "thinking"; showAi(q, "Думаю…");
     const ctx = prefill ? prefill + " Ответ Дмитрия: " + q : q;
-    let a = await askClaude(ctx);
+    let a = await askAI(ctx);
     const m = a.match(/\[NAV:\s*([^\]]+)\]/i);
     a = a.replace(/\[NAV:[^\]]*\]/ig, "").trim();
     showAi(q, a);
@@ -748,7 +822,7 @@ async function converse(prefill){
 $("askBtn").onclick = () => converse();
 $("btnTestAi").onclick = async () => {
   $("aiTest").textContent = "Проверяю…";
-  try { const a = await askClaude("Скажи одной фразой, что ты на связи."); aiHistory = []; $("aiTest").textContent = "✓ " + a; speak(a); }
+  try { const a = await askAI("Скажи одной фразой, что ты на связи."); aiHistory = []; $("aiTest").textContent = "✓ " + a; speak(a); }
   catch(e) { $("aiTest").textContent = "Ошибка: " + (e.message || e); }
 };
 async function greet(){
@@ -761,7 +835,7 @@ async function greet(){
   t += " Куда едем сегодня?";
   showAi("", t);
   await speak(t);
-  if (S.key && SR && !demo) converse("Ты только что поздоровалась и спросила, куда едем сегодня.");
+  if (SR && !demo) converse("Ты только что поздоровалась и спросила, куда едем сегодня.");
 }
 
 /* ---------------- Demo ---------------- */
