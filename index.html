@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<title>T5 Дмитрия — бортовой сканер</title>
+<style>
+  :root{
+    --bg:#0b0f14; --card:#141b23; --card2:#1b2430; --text:#eef3f8; --muted:#8a99ab;
+    --accent:#3fa7ff; --ok:#35d07f; --warn:#ffb020; --bad:#ff4d4f; --line:#243041;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  body{padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 90px)}
+  h1{margin:0;font-size:clamp(40px,13vw,72px);line-height:.95;letter-spacing:.02em;font-weight:900}
+  .sub{font-size:clamp(17px,4.6vw,24px);color:var(--accent);font-weight:700;margin:6px 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{font:inherit;font-weight:700;border:0;border-radius:14px;padding:14px 16px;background:var(--card2);color:var(--text);cursor:pointer}
+  button.primary{background:var(--accent);color:#04121f}
+  button.danger{background:var(--bad);color:#fff}
+  button:disabled{opacity:.45}
+  .status{font-size:15px;color:var(--muted)}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:middle}
+  .dot.on{background:var(--ok)} .dot.busy{background:var(--warn)}
+
+  /* Fuel */
+  #fuelCard{text-align:center;padding:18px 16px 20px;transition:background .3s}
+  #fuelCard .lbl{font-size:20px;font-weight:800;letter-spacing:.08em;color:var(--muted)}
+  #fuelL{font-size:clamp(90px,30vw,170px);font-weight:900;line-height:1;margin:4px 0}
+  #fuelL small{font-size:.32em;font-weight:800;color:var(--muted)}
+  #fuelPct{font-size:22px;font-weight:700;color:var(--muted)}
+  .bar{height:22px;border-radius:12px;background:var(--card2);overflow:hidden;margin-top:12px}
+  .bar>div{height:100%;width:0;background:var(--ok);transition:width .6s,background .3s}
+  #fuelSrc{font-size:13px;color:var(--muted);margin-top:8px}
+  #fuelCard.low{background:#3a0d10;border-color:var(--bad);animation:pulse 1.2s infinite}
+  #fuelCard.low #fuelL,#fuelCard.low .lbl{color:#ff7a7c}
+  @keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,77,79,.35)}}
+
+  #lowBanner{display:none;position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);z-index:20;
+    background:var(--bad);color:#fff;border-radius:18px;padding:16px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  #lowBanner b{display:block;font-size:30px;font-weight:900}
+  #lowBanner button{margin-top:10px;background:#fff;color:var(--bad)}
+
+  /* Gauges */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .g{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
+  .g .n{font-size:13px;color:var(--muted);font-weight:600}
+  .g .v{font-size:30px;font-weight:800;margin-top:2px}
+  .g .u{font-size:14px;color:var(--muted);font-weight:600;margin-left:3px}
+  .g.na .v{color:#4a5a6e;font-size:20px}
+
+  /* Tabs */
+  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#0e141b;border-top:1px solid var(--line);
+    padding:6px 6px calc(env(safe-area-inset-bottom) + 6px);z-index:10}
+  nav button{flex:1;background:transparent;color:var(--muted);padding:12px 4px;font-size:15px}
+  nav button.act{color:var(--accent)}
+  .tab{display:none} .tab.act{display:block}
+
+  .dtc{border-bottom:1px solid var(--line);padding:10px 0}
+  .dtc:last-child{border-bottom:0}
+  .dtc b{font-size:20px}
+  .mod{font-size:13px;color:var(--muted)}
+  label{display:block;font-size:15px;color:var(--muted);margin:12px 0 6px}
+  input,select{font:inherit;font-size:18px;width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--text)}
+  #log{font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto;color:#9fb3c8;background:#070a0e;border-radius:12px;padding:10px}
+  .note{font-size:14px;color:var(--muted);line-height:1.45}
+  .warnbox{background:#2b2108;border:1px solid #5a4410;color:#ffd77a;border-radius:14px;padding:12px;font-size:14px;line-height:1.45;margin-bottom:12px;display:none}
+  #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:30;align-items:center;justify-content:center;padding:20px}
+  #modal .card{max-width:420px;width:100%}
+</style>
+</head>
+<body>
+
+<div id="lowBanner"><b>МАЛО ТОПЛИВА!</b><span id="lowText">Дмитрий, пора на заправку</span><br><button id="lowOk">Понял</button></div>
+
+<header>
+  <h1>ДМИТРИЙ</h1>
+  <div class="sub">специально для тебя и твоего T5</div>
+</header>
+
+<div id="envWarn" class="warnbox"></div>
+
+<div class="card">
+  <div class="row" style="justify-content:space-between">
+    <div class="status"><span id="dot" class="dot"></span><span id="status">Не подключено</span></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <button id="btnConnect" class="primary" style="flex:1">Подключить сканер</button>
+    <button id="btnDemo">Демо</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button id="btnBle" style="flex:1;font-size:14px;padding:10px">Подключить BLE-адаптер</button>
+  </div>
+</div>
+
+<!-- DASH -->
+<section id="tab-dash" class="tab act">
+  <div id="fuelCard" class="card">
+    <div class="lbl">ТОПЛИВО</div>
+    <div id="fuelL">--<small> л</small></div>
+    <div id="fuelPct">—</div>
+    <div class="bar"><div id="fuelBar"></div></div>
+    <div id="fuelSrc">нет данных</div>
+  </div>
+  <div class="grid" id="gauges"></div>
+</section>
+
+<!-- ERRORS -->
+<section id="tab-dtc" class="tab">
+  <div class="card">
+    <div style="font-size:20px;font-weight:800;margin-bottom:10px">Ошибки</div>
+    <label>Блок</label>
+    <select id="dtcModule">
+      <option value="obd">01 Двигатель (стандартный OBD-II)</option>
+      <option value="17">17 Приборная панель (VW)</option>
+      <option value="03">03 ABS (VW)</option>
+      <option value="15">15 Подушки безопасности (VW)</option>
+      <option value="09">09 Центральная электроника (VW)</option>
+      <option value="19">19 Шлюз CAN (VW)</option>
+    </select>
+    <div class="row" style="margin-top:12px">
+      <button id="btnReadDtc" class="primary" style="flex:1">Прочитать</button>
+      <button id="btnClearDtc" class="danger">Стереть</button>
+    </div>
+  </div>
+  <div class="card" id="dtcList"><div class="note">Ошибки ещё не читались.</div></div>
+</section>
+
+<!-- SETTINGS -->
+<section id="tab-set" class="tab">
+  <div class="card">
+    <div style="font-size:20px;font-weight:800">Настройки</div>
+    <label>Объём бака, л</label>
+    <input id="setTank" type="number" inputmode="numeric" min="30" max="150">
+    <label>Предупреждать, когда топлива меньше, л</label>
+    <input id="setLow" type="number" inputmode="numeric" min="1" max="60">
+    <label>Откуда брать уровень топлива</label>
+    <select id="setFuelSrc">
+      <option value="auto">Авто (сначала OBD, потом приборка)</option>
+      <option value="obd">Только стандартный OBD (PID 2F)</option>
+      <option value="cluster">Только приборка VW (блок 17, группа 002)</option>
+    </select>
+    <label>Голосовое предупреждение</label>
+    <select id="setVoice"><option value="1">Включено</option><option value="0">Выключено</option></select>
+  </div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <b>Журнал обмена</b>
+      <div class="row"><button id="btnCopyLog">Копировать</button><button id="btnClearLog">Очистить</button></div>
+    </div>
+    <div id="log" style="margin-top:10px"></div>
+  </div>
+  <div class="card note">
+    Адаптер: ELM327 по обычному Bluetooth (сначала спарь его в настройках телефона, PIN 1234 или 0000) — кнопка «Подключить сканер»; BLE-адаптеры — отдельной кнопкой. Протокол: CAN 11 бит 500 кбит.
+    Двигатель читается по стандартному OBD-II, приборка и остальные блоки VW — по протоколу VW TP2.0/KWP2000.
+    Если что-то не читается — пришли журнал обмена, разберёмся.
+  </div>
+</section>
+
+<nav>
+  <button data-tab="dash" class="act">Приборы</button>
+  <button data-tab="dtc">Ошибки</button>
+  <button data-tab="set">Настройки</button>
+</nav>
+
+<div id="modal"><div class="card">
+  <div id="modalText" style="font-size:18px;line-height:1.4"></div>
+  <div class="row" style="margin-top:16px;justify-content:flex-end">
+    <button id="modalNo">Отмена</button><button id="modalYes" class="danger">Да</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* ---------------- Settings ---------------- */
+const DEF = {tank:80, low:12, fuelSrc:"auto", voice:"1"};
+let S = Object.assign({}, DEF);
+try { Object.assign(S, JSON.parse(localStorage.getItem("t5set") || "{}")); } catch(e) {}
+function saveS(){ try{ localStorage.setItem("t5set", JSON.stringify(S)); }catch(e){} }
+
+const $ = id => document.getElementById(id);
+$("setTank").value = S.tank; $("setLow").value = S.low; $("setFuelSrc").value = S.fuelSrc; $("setVoice").value = S.voice;
+$("setTank").onchange = e => { S.tank = +e.target.value || 80; saveS(); renderFuel(); };
+$("setLow").onchange  = e => { S.low = +e.target.value || 12; saveS(); renderFuel(); };
+$("setFuelSrc").onchange = e => { S.fuelSrc = e.target.value; saveS(); };
+$("setVoice").onchange = e => { S.voice = e.target.value; saveS(); };
+
+/* ---------------- Tabs ---------------- */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("act", x === b));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("act", t.id === "tab-" + b.dataset.tab));
+});
+
+/* ---------------- Log ---------------- */
+const logLines = [];
+function log(s){
+  const t = new Date().toTimeString().slice(0,8);
+  logLines.push(t + " " + s); if (logLines.length > 400) logLines.shift();
+  const el = $("log"); el.textContent = logLines.join("\n"); el.scrollTop = el.scrollHeight;
+}
+$("btnClearLog").onclick = () => { logLines.length = 0; $("log").textContent = ""; };
+$("btnCopyLog").onclick = async () => { try { await navigator.clipboard.writeText(logLines.join("\n")); $("btnCopyLog").textContent = "Скопировано"; } catch(e){ $("btnCopyLog").textContent = "Не вышло"; } setTimeout(()=>$("btnCopyLog").textContent="Копировать",1500); };
+
+/* ---------------- Modal confirm ---------------- */
+function confirmBox(text){
+  return new Promise(res => {
+    $("modalText").textContent = text; $("modal").style.display = "flex";
+    $("modalYes").onclick = () => { $("modal").style.display = "none"; res(true); };
+    $("modalNo").onclick  = () => { $("modal").style.display = "none"; res(false); };
+  });
+}
+
+/* ---------------- Status ---------------- */
+function setStatus(text, state){ $("status").textContent = text; $("dot").className = "dot " + (state || ""); }
+
+/* ---------------- Gauges ---------------- */
+// Standard OBD-II PIDs (mode 01)
+const PIDS = [
+  {pid:"0C", n:"Обороты",            u:"об/мин", f:b => ((b[0]*256+b[1])/4).toFixed(0)},
+  {pid:"0D", n:"Скорость",           u:"км/ч",   f:b => b[0]},
+  {pid:"05", n:"Темп. ОЖ",           u:"°C",     f:b => b[0]-40},
+  {pid:"0F", n:"Темп. впуска",       u:"°C",     f:b => b[0]-40},
+  {pid:"0B", n:"Давл. во впуске",    u:"бар",    f:b => (b[0]/100).toFixed(2), raw:b => b[0]},
+  {pid:"BOOST", n:"Наддув (изб.)",   u:"бар",    virtual:true},
+  {pid:"23", n:"Давление в рейке",   u:"бар",    f:b => ((b[0]*256+b[1])*10/100).toFixed(0)},
+  {pid:"10", n:"Расход воздуха",     u:"г/с",    f:b => ((b[0]*256+b[1])/100).toFixed(1)},
+  {pid:"04", n:"Нагрузка",           u:"%",      f:b => (b[0]*100/255).toFixed(0)},
+  {pid:"2C", n:"EGR (задано)",       u:"%",      f:b => (b[0]*100/255).toFixed(0)},
+  {pid:"42", n:"Напряжение",         u:"В",      f:b => ((b[0]*256+b[1])/1000).toFixed(1)},
+  {pid:"5C", n:"Темп. масла",        u:"°C",     f:b => b[0]-40},
+  {pid:"7C", n:"Темп. сажевика",     u:"°C",     f:b => ((b[0]*256+b[1])/10-40).toFixed(0)},
+  {pid:"33", n:"Атм. давление",      u:"бар",    f:b => (b[0]/100).toFixed(2), raw:b => b[0]},
+];
+const gEls = {};
+function buildGauges(){
+  const g = $("gauges"); g.innerHTML = "";
+  PIDS.forEach(p => {
+    const d = document.createElement("div"); d.className = "g na";
+    d.innerHTML = `<div class="n">${p.n}</div><div class="v">—</div>`;
+    g.appendChild(d); gEls[p.pid] = d;
+  });
+}
+buildGauges();
+const rawVals = {};
+function setGauge(pid, val, unit){
+  const d = gEls[pid]; if (!d) return;
+  if (val === null) { d.className = "g na"; d.querySelector(".v").textContent = "нет"; return; }
+  d.className = "g"; d.querySelector(".v").innerHTML = `${val}<span class="u">${unit}</span>`;
+}
+
+/* ---------------- Fuel ---------------- */
+let fuel = {l:null, pct:null, src:""};
+let lowAcked = false, lastAlert = 0;
+function renderFuel(){
+  const card = $("fuelCard");
+  if (fuel.l === null) { $("fuelL").innerHTML = '--<small> л</small>'; $("fuelPct").textContent = "—"; $("fuelSrc").textContent = fuel.src || "нет данных"; card.classList.remove("low"); return; }
+  const pct = Math.max(0, Math.min(100, fuel.pct));
+  $("fuelL").innerHTML = `${Math.round(fuel.l)}<small> л</small>`;
+  $("fuelPct").textContent = `${pct.toFixed(0)} % бака · запас ≈ ${Math.round(fuel.l / 9 * 100)} км`;
+  const bar = $("fuelBar"); bar.style.width = pct + "%";
+  const low = fuel.l <= S.low;
+  bar.style.background = low ? "var(--bad)" : (fuel.l <= S.low * 2 ? "var(--warn)" : "var(--ok)");
+  card.classList.toggle("low", low);
+  $("fuelSrc").textContent = "источник: " + fuel.src;
+  if (low) lowFuelAlert(); else { lowAcked = false; $("lowBanner").style.display = "none"; }
+}
+function lowFuelAlert(){
+  const now = Date.now();
+  if (lowAcked && now - lastAlert < 5*60*1000) return;   // повтор не чаще раза в 5 минут после «Понял»
+  if (!lowAcked && $("lowBanner").style.display === "block" && now - lastAlert < 60*1000) return;
+  lastAlert = now;
+  $("lowText").textContent = `Дмитрий, осталось около ${Math.round(fuel.l)} л — пора на заправку`;
+  $("lowBanner").style.display = "block";
+  beep();
+  try { navigator.vibrate && navigator.vibrate([400,150,400,150,400]); } catch(e){}
+  if (S.voice === "1") { try { const u = new SpeechSynthesisUtterance(`Дмитрий, мало топлива. Осталось ${Math.round(fuel.l)} литров`); u.lang = "ru-RU"; speechSynthesis.speak(u); } catch(e){} }
+}
+$("lowOk").onclick = () => { lowAcked = true; lastAlert = Date.now(); $("lowBanner").style.display = "none"; };
+let actx = null;
+function unlockAudio(){ try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch(e){} }
+function beep(){
+  if (!actx) return;
+  try { [0,0.35,0.7].forEach(t => { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.3, actx.currentTime + t); g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + t + 0.3); o.start(actx.currentTime + t); o.stop(actx.currentTime + t + 0.3); }); } catch(e){}
+}
+
+/* ---------------- Transport: BLE ELM327 ---------------- */
+const BLE_SERVICES = [0xfff0, 0xffe0, 0x18f0, 0xffe5, "e7810a71-73ae-499d-8c15-faa9aef0c3f2", "0000fff0-0000-1000-8000-00805f9b34fb"];
+let dev = null, chRx = null, chTx = null, demo = false;
+let rxBuf = "", pending = null, cmdChain = Promise.resolve();
+
+function onNotify(e){ feed(new TextDecoder().decode(e.target.value)); }
+function feed(txt){
+  rxBuf += txt;
+  const i = rxBuf.indexOf(">");
+  if (i >= 0) {
+    const out = rxBuf.slice(0, i); rxBuf = rxBuf.slice(i + 1);
+    if (pending) { const p = pending; pending = null; clearTimeout(p.t); p.res(out); }
+  }
+}
+let serialPort = null, serialWriter = null, serialReader = null;
+async function bleWrite(str){
+  const data = new TextEncoder().encode(str);
+  if (serialWriter) { await serialWriter.write(data); return; }
+  for (let i = 0; i < data.length; i += 20) {
+    const chunk = data.slice(i, i + 20);
+    if (chTx.properties.writeWithoutResponse && chTx.writeValueWithoutResponse) await chTx.writeValueWithoutResponse(chunk);
+    else await chTx.writeValue(chunk);
+  }
+}
+// Send one command to ELM, resolve with raw text up to '>' prompt
+function cmd(c, timeout = 2500){
+  const run = () => new Promise(async res => {
+    if (demo) { res(fakeElm(c)); return; }
+    if (!chTx && !serialWriter) { res("NOT CONNECTED"); return; }
+    rxBuf = "";
+    pending = {res: r => { log("> " + c + "  < " + r.replace(/[\r\n]+/g," | ").trim()); res(r); },
+               t: setTimeout(() => { pending = null; log("> " + c + "  < TIMEOUT"); res("TIMEOUT"); }, timeout)};
+    try { await bleWrite(c + "\r"); } catch(err) { clearTimeout(pending && pending.t); pending = null; log("write error " + err); res("ERROR"); }
+  });
+  const p = cmdChain.then(run, run); cmdChain = p.catch(() => {}); return p;
+}
+// Exclusive section (so polling and VW-sessions don't mix)
+let lock = Promise.resolve();
+function exclusive(fn){ const p = lock.then(fn, fn); lock = p.catch(() => {}); return p; }
+
+function lines(r){ return r.split(/[\r\n]+/).map(s => s.replace(/\s+/g,"").toUpperCase()).filter(s => s && !/SEARCHING|BUSINIT|^OK$|^\?$|^STOPPED/.test(s)); }
+function bytesOf(hex){ const a = []; for (let i = 0; i + 1 < hex.length; i += 2) a.push(parseInt(hex.substr(i,2),16)); return a; }
+const hx = (n, w = 2) => n.toString(16).toUpperCase().padStart(w, "0");
+const hexs = arr => arr.map(b => hx(b)).join("");
+
+async function connect(){
+  unlockAudio();
+  if (!navigator.bluetooth) { showEnvWarn(); return; }
+  try {
+    setStatus("Выбор адаптера…", "busy");
+    dev = await navigator.bluetooth.requestDevice({acceptAllDevices: true, optionalServices: BLE_SERVICES});
+    dev.addEventListener("gattserverdisconnected", onDisconnect);
+    const server = await dev.gatt.connect();
+    setStatus("Поиск канала…", "busy");
+    const services = await server.getPrimaryServices();
+    for (const s of services) {
+      let chars = []; try { chars = await s.getCharacteristics(); } catch(e){ continue; }
+      const n = chars.find(c => c.properties.notify || c.properties.indicate);
+      const w = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
+      if (n && w) { chRx = n; chTx = w; log("service " + s.uuid); break; }
+    }
+    if (!chRx) throw new Error("не найден канал обмена у адаптера");
+    await chRx.startNotifications(); chRx.addEventListener("characteristicvaluechanged", onNotify);
+    demo = false;
+    await startSession();
+  } catch(e) {
+    log("connect error: " + e);
+    if (String(e).includes("SecurityError") || String(e).includes("permissions policy") || String(e).includes("not allowed")) showEnvWarn();
+    setStatus("Ошибка: " + (e.message || e), "");
+  }
+}
+const SPP = "00001101-0000-1000-8000-00805f9b34fb";
+async function connectSerial(){
+  unlockAudio();
+  if (!navigator.serial) {
+    if (navigator.bluetooth) return connect();
+    showEnvWarn(); return;
+  }
+  try {
+    setStatus("Выбор сканера…", "busy");
+    serialPort = await navigator.serial.requestPort({allowedBluetoothServiceClassIds: [SPP], filters: [{bluetoothServiceClassId: SPP}]});
+    setStatus("Подключение…", "busy");
+    await serialPort.open({baudRate: 38400});
+    serialWriter = serialPort.writable.getWriter();
+    serialReader = serialPort.readable.getReader();
+    (async () => {
+      const dec = new TextDecoder();
+      try { while (true) { const {value, done} = await serialReader.read(); if (done) break; if (value) feed(dec.decode(value)); } }
+      catch(e) { log("serial read: " + e); }
+      onDisconnect();
+    })();
+    demo = false; dev = {name: "OBDII (Bluetooth)"};
+    await startSession();
+  } catch(e) {
+    log("serial error: " + e);
+    if (String(e).includes("NotFoundError")) setStatus("Сканер не выбран", "");
+    else if (String(e).includes("SecurityError") || String(e).includes("permissions policy")) { showEnvWarn(); setStatus("Bluetooth недоступен здесь", ""); }
+    else setStatus("Ошибка: " + (e.message || e), "");
+  }
+}
+function onDisconnect(){ serialWriter = null; polling = false; chTx = chRx = null; setStatus("Адаптер отключился", ""); }
+function showEnvWarn(){
+  const w = $("envWarn"); w.style.display = "block";
+  w.innerHTML = "Bluetooth здесь недоступен. Открой приложение по прямой ссылке в <b>Chrome на Android</b>. Внутри окна Claude браузер Bluetooth не разрешает. Кнопка «Демо» работает везде.";
+}
+
+/* ---------------- Session ---------------- */
+let supported = new Set(), polling = false;
+async function startSession(){
+  setStatus("Инициализация адаптера…", "busy");
+  await cmd("ATZ", 4000);
+  for (const c of ["ATE0","ATL0","ATS0","ATH0","ATAT1","ATSP6","ATST64"]) await cmd(c);
+  const ver = await cmd("ATI"); log("adapter: " + ver.trim());
+  supported = new Set();
+  for (const base of ["00","20","40","60"]) {
+    const r = await cmd("01" + base, 5000);
+    const ln = lines(r).find(l => l.startsWith("41" + base));
+    if (!ln) break;
+    const b = bytesOf(ln.slice(4, 12));
+    for (let i = 0; i < 32; i++) if (b[i >> 3] & (0x80 >> (i & 7))) supported.add(hx(parseInt(base,16) + i + 1));
+    if (!supported.has(hx(parseInt(base,16) + 0x20))) break;
+  }
+  if (!supported.size) { setStatus("Машина не отвечает. Зажигание включено?", ""); return; }
+  log("supported PIDs: " + [...supported].join(" "));
+  PIDS.forEach(p => { if (!p.virtual && !supported.has(p.pid)) setGauge(p.pid, null); });
+  if (!(supported.has("0B") && supported.has("33"))) setGauge("BOOST", null);
+  setStatus(demo ? "ДЕМО-режим" : "Подключено: " + (dev && dev.name || "адаптер"), "on");
+  polling = true; pollLoop();
+}
+
+async function readPid(pid){
+  const r = await cmd("01" + pid);
+  const ln = lines(r).find(l => l.startsWith("41" + pid));
+  return ln ? bytesOf(ln.slice(4)) : null;
+}
+
+let lastFuelRead = 0;
+async function pollLoop(){
+  while (polling) {
+    // 1) fuel first, every 10 s
+    if (Date.now() - lastFuelRead > (demo ? 3000 : 10000)) { lastFuelRead = Date.now(); await exclusive(readFuel); }
+    // 2) gauges
+    await exclusive(async () => {
+      for (const p of PIDS) {
+        if (!polling) return;
+        if (p.virtual || !supported.has(p.pid)) continue;
+        const b = await readPid(p.pid);
+        if (!b) continue;
+        if (p.raw) rawVals[p.pid] = p.raw(b);
+        setGauge(p.pid, p.f(b), p.u);
+      }
+      if (rawVals["0B"] != null && rawVals["33"] != null) setGauge("BOOST", ((rawVals["0B"] - rawVals["33"]) / 100).toFixed(2), "бар");
+    });
+    await new Promise(r => setTimeout(r, demo ? 700 : 150));
+  }
+}
+
+async function readFuel(){
+  const want = S.fuelSrc;
+  if ((want === "auto" || want === "obd") && supported.has("2F")) {
+    const b = await readPid("2F");
+    if (b) { const pct = b[0] * 100 / 255; fuel = {pct, l: pct * S.tank / 100, src: "OBD-II (PID 2F)"}; renderFuel(); return; }
+  }
+  if (want === "auto" || want === "cluster") {
+    try {
+      const r = await vwReadGroup(0x17, 2);
+      // Приборка VW, группа 002: пробег, топливо (л), сопротивление датчика, наружная темп.
+      const f = r && (r.find(x => x.unit === "л") || r[1]);
+      if (f && f.value >= 0 && f.value < 150) { fuel = {l: f.value, pct: f.value / S.tank * 100, src: "приборка VW (17 / группа 002)"}; renderFuel(); return; }
+    } catch(e) { log("cluster fuel: " + e); }
+  }
+  fuel = {l:null, pct:null, src: "не удалось прочитать уровень топлива"}; renderFuel();
+}
+
+/* ---------------- VW TP2.0 / KWP2000 ---------------- */
+let tp = null;
+function canFrames(r){
+  // with ATH1 ATS0 on 11-bit CAN: "300" + data
+  return lines(r).filter(l => /^[0-9A-F]{5,}$/.test(l)).map(l => ({id: parseInt(l.slice(0,3),16), d: bytesOf(l.slice(3))}));
+}
+async function tpOpen(mod){
+  await cmd("ATH1"); await cmd("ATCAF0"); await cmd("ATSH200"); await cmd("ATCRA" + hx(0x200 + mod, 3));
+  let fr = canFrames(await cmd(hexs([mod, 0xC0, 0x00, 0x10, 0x00, 0x03, 0x01]), 1500));
+  const f = fr.find(x => x.d[1] === 0xD0);
+  if (!f) throw new Error("блок " + hx(mod) + " не ответил");
+  const tx = (f.d[2] | (f.d[3] << 8)) & 0x7FF, rx = (f.d[4] | (f.d[5] << 8)) & 0x7FF;
+  await cmd("ATSH" + hx(tx, 3)); await cmd("ATCRA" + hx(rx, 3));
+  fr = canFrames(await cmd("A00F8AFF32FF", 1500));
+  if (!fr.some(x => x.d[0] === 0xA1)) throw new Error("канал не согласован");
+  tp = {tx, rx, seq: 0};
+}
+async function tpClose(){
+  try { if (tp) await cmd("A8", 400); } catch(e){}
+  tp = null;
+  for (const c of ["ATAR","ATCAF1","ATH0","ATSH7DF"]) await cmd(c);
+}
+async function tpReq(kwp){
+  const payload = [kwp.length >> 8, kwp.length & 0xFF, ...kwp];
+  const chunks = []; for (let i = 0; i < payload.length; i += 7) chunks.push(payload.slice(i, i + 7));
+  let resp = "";
+  for (let i = 0; i < chunks.length; i++) {
+    const last = i === chunks.length - 1;
+    const op = (last ? 0x10 : 0x20) | tp.seq; tp.seq = (tp.seq + 1) & 0xF;
+    resp = await cmd(hexs([op, ...chunks[i]]), last ? 2500 : 400);
+  }
+  let data = [], done = false, guard = 0, fr = canFrames(resp);
+  while (!done && guard++ < 12) {
+    let ack = null;
+    for (const f of fr) {
+      if (f.id !== tp.rx || !f.d.length) continue;
+      const op = f.d[0] >> 4;
+      if (op > 3) continue;                        // ACK (B) / channel (A) frames
+      data.push(...f.d.slice(1));
+      if (op === 1 || op === 3) done = true;
+      if (op === 0 || op === 1) ack = ((f.d[0] & 0xF) + 1) & 0xF;
+    }
+    if (ack !== null) fr = canFrames(await cmd(hx(0xB0 | ack), done ? 300 : 2000));
+    else break;
+    // "response pending" (7F xx 78) → keep waiting
+    if (done && data[2] === 0x7F && data[4] === 0x78) { data = []; done = false; }
+  }
+  if (data.length < 3) throw new Error("пустой ответ");
+  const len = (data[0] << 8) | data[1];
+  return data.slice(2, 2 + len);
+}
+// KWP measuring value formulas (common VAG types)
+function vwValue(t, a, b){
+  switch (t) {
+    case 0x01: return [0.2*a*b, "об/мин"];
+    case 0x02: return [a*0.002*b, "%"];
+    case 0x03: return [0.002*a*b, "°"];
+    case 0x05: return [a*(b-100)*0.1, "°C"];
+    case 0x06: return [0.001*a*b, "В"];
+    case 0x07: return [0.01*a*b, "км/ч"];
+    case 0x08: return [0.1*a*b, ""];
+    case 0x0F: return [0.01*a*b, "мс"];
+    case 0x12: return [0.04*a*b, "мбар"];
+    case 0x13: return [0.01*a*b, "л"];
+    case 0x14: return [a*(b-128)/128, "%"];
+    case 0x15: return [0.001*a*b, "В"];
+    case 0x16: return [0.001*a*b, "мс"];
+    case 0x17: return [b/256*a, "%"];
+    case 0x1A: return [b-a, "°C"];
+    case 0x21: return [a ? 100*b/a : 0, "%"];
+    case 0x23: return [0.01*a*b, "л/ч"];
+    case 0x24: return [(a*256+b)*10, "км"];
+    case 0x31: return [(b/4)*a*0.1, "мг/ход"];
+    case 0x36: return [a*256+b, ""];
+    case 0x40: return [a+b, "Ом"];
+    default:   return [a*b, "?"];
+  }
+}
+async function vwSession(mod, fn){
+  await tpOpen(mod);
+  try { await tpReq([0x10, 0x89]); return await fn(); }
+  finally { await tpClose(); }
+}
+async function vwReadGroup(mod, group){
+  if (demo) return demoGroup(mod, group);
+  return vwSession(mod, async () => {
+    const r = await tpReq([0x21, group]);
+    if (r[0] !== 0x61) throw new Error("группа не прочитана: " + hexs(r));
+    const out = [];
+    for (let i = 2; i + 2 < r.length && out.length < 4; i += 3) {
+      const [v, u] = vwValue(r[i], r[i+1], r[i+2]); out.push({value: Math.round(v*100)/100, unit: u});
+    }
+    log("group " + hx(mod) + "/" + group + ": " + out.map(x => x.value + x.unit).join(", "));
+    return out;
+  });
+}
+
+/* ---------------- DTC ---------------- */
+function obdDtc(b1, b2){ return "PCBU"[b1 >> 6] + ((b1 >> 4) & 3) + hx(b1 & 0xF, 1) + hx(b2); }
+async function readDtc(){
+  const m = $("dtcModule").value, list = $("dtcList");
+  if (!polling && !demo) { list.innerHTML = '<div class="note">Сначала подключи адаптер.</div>'; return; }
+  list.innerHTML = '<div class="note">Читаю…</div>';
+  try {
+    const codes = await exclusive(async () => {
+      if (m === "obd") {
+        const out = [];
+        for (const [mode, kind] of [["03","сохранённая"],["07","ожидающая"]]) {
+          const ls = lines(await cmd(mode, 4000)).filter(l => l.startsWith("4" + mode[1]));
+          for (const l of ls) {
+            let b = bytesOf(l.slice(2));
+            if (b.length % 2 === 1) b = b.slice(1);    // CAN: first byte = count
+            for (let i = 0; i + 1 < b.length; i += 2) if (b[i] || b[i+1]) out.push({code: obdDtc(b[i], b[i+1]), info: kind});
+          }
+        }
+        return out;
+      }
+      if (demo) return [{code:"00532", info:"Напряжение питания: слишком низкое (демо)"}];
+      return vwSession(parseInt(m,16), async () => {
+        const r = await tpReq([0x18, 0x02, 0xFF, 0x00]);
+        if (r[0] !== 0x58) throw new Error("ответ " + hexs(r));
+        const out = [];
+        for (let i = 2; i + 2 < r.length; i += 3) out.push({code: String((r[i] << 8) | r[i+1]).padStart(5,"0"), info: "статус " + hx(r[i+2])});
+        return out;
+      });
+    });
+    list.innerHTML = codes.length
+      ? codes.map(c => `<div class="dtc"><b>${c.code}</b><div class="mod">${c.info}</div></div>`).join("") + `<div class="note" style="margin-top:10px">Расшифровку кода можно найти по номеру (для VW — 5-значные коды VCDS).</div>`
+      : '<div class="note" style="font-size:20px;color:var(--ok);font-weight:800">Ошибок нет ✓</div>';
+  } catch(e) { list.innerHTML = `<div class="note">Не удалось прочитать: ${e.message || e}</div>`; }
+}
+async function clearDtc(){
+  const m = $("dtcModule").value;
+  if (!polling && !demo) { $("dtcList").innerHTML = '<div class="note">Сначала подключи адаптер.</div>'; return; }
+  if (!await confirmBox("Стереть ошибки в выбранном блоке? Двигатель лучше заглушить, зажигание оставить включённым.")) return;
+  try {
+    await exclusive(async () => {
+      if (m === "obd") { await cmd("04", 4000); return; }
+      if (demo) return;
+      await vwSession(parseInt(m,16), () => tpReq([0x14, 0xFF, 0x00]));
+    });
+    $("dtcList").innerHTML = '<div class="note">Команда стирания отправлена. Прочитай ещё раз, чтобы проверить.</div>';
+  } catch(e) { $("dtcList").innerHTML = `<div class="note">Ошибка: ${e.message || e}</div>`; }
+}
+$("btnReadDtc").onclick = readDtc;
+$("btnClearDtc").onclick = clearDtc;
+
+/* ---------------- Demo ---------------- */
+let demoFuel = 22, demoT = 0;
+function fakeElm(c){
+  demoT++;
+  const r = (x) => x + "\r\r";
+  if (c.startsWith("AT")) return r(c === "ATI" ? "ELM327 v1.5 (демо)" : "OK");
+  const map = {
+    "0100": "4100BE3FA813", "0120": "4120A0132001", "0140": "414040000011", "0160": "416000000010",
+  };
+  if (map[c]) return r(map[c]);
+  const rpm = 800 + Math.round(1200 * (1 + Math.sin(demoT / 15)));
+  switch (c) {
+    case "010C": return r("410C" + hx((rpm*4)>>8) + hx((rpm*4)&255));
+    case "010D": return r("410D" + hx(Math.round(40 + 30*Math.sin(demoT/20))));
+    case "0105": return r("4105" + hx(40 + 88));
+    case "010F": return r("410F" + hx(40 + 24));
+    case "010B": return r("410B" + hx(Math.round(100 + 60*(1+Math.sin(demoT/15))/2)));
+    case "0133": return r("413362");
+    case "0123": { const v = Math.round((300 + 800*(1+Math.sin(demoT/15))/2) * 10); return r("4123" + hx(v>>8) + hx(v&255)); }
+    case "0110": { const v = Math.round((8 + 25*(1+Math.sin(demoT/15))/2)*100); return r("4110" + hx(v>>8) + hx(v&255)); }
+    case "0104": return r("4104" + hx(Math.round(60 + 80*(1+Math.sin(demoT/15))/2)));
+    case "012C": return r("412C" + hx(70));
+    case "0142": return r("41423774");
+    case "015C": return r("415C" + hx(40+92));
+    case "012F": { demoFuel = Math.max(5, demoFuel - 1); return r("412F" + hx(Math.round(demoFuel / S.tank * 255))); }
+    case "03": return r("4300");
+    case "07": return r("470101910000");
+    case "04": return r("44");
+  }
+  return r("NO DATA");
+}
+function demoGroup(){ return [{value:186420,unit:"км"},{value:demoFuel,unit:"л"},{value:120,unit:"Ом"},{value:7,unit:"°C"}]; }
+$("btnDemo").onclick = async () => {
+  unlockAudio(); polling = false; await new Promise(r => setTimeout(r, 300));
+  demo = true; demoFuel = 16; lowAcked = false; await startSession();
+};
+$("btnConnect").onclick = connectSerial;
+$("btnBle").onclick = connect;
+
+/* keep screen on while connected */
+async function keepAwake(){ try { if (navigator.wakeLock) await navigator.wakeLock.request("screen"); } catch(e){} }
+document.addEventListener("click", keepAwake, {once:true});
+if (!navigator.bluetooth && !navigator.serial) showEnvWarn();
+</script>
+</body>
+</html>
