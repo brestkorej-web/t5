@@ -1,0 +1,49 @@
+name: Сборка APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Офлайн-модель речи и интерфейс
+        run: |
+          curl -sSL -o model.zip https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip
+          unzip -q model.zip
+          mkdir -p android/app/src/main/assets
+          rm -rf android/app/src/main/assets/model-ru
+          mv vosk-model-small-ru-0.22 android/app/src/main/assets/model-ru
+          echo "vosk-model-small-ru-0.22" > android/app/src/main/assets/model-ru/uuid
+          cp index.html android/app/src/main/assets/index.html
+
+      - name: Сборка
+        working-directory: android
+        run: gradle assembleDebug --no-daemon
+
+      - name: Публикация
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk T5.apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: "T5 Бусик — сборка ${{ github.run_number }}"
+          body: "Скачать: T5.apk ниже. Установить поверх старой версии."
+          files: T5.apk
+          make_latest: true

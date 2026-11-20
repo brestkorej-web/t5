@@ -32,7 +32,7 @@
   /* Van hero */
   #hero{position:relative;padding:10px 12px 16px;text-align:center;overflow:hidden;background:radial-gradient(90% 70% at 50% 35%,#4a3420 0%,var(--card) 75%)}
   #van{width:100%;max-width:420px;display:block;margin:0 auto}
-  #van .bob{transform-origin:160px 120px}
+  #van .bob{transform-origin:165px 130px}
   #van.run .bob{animation:bob .5s ease-in-out infinite}
   #van.drive .wheel{animation:spin .6s linear infinite}
   #van .wheel{transform-box:fill-box;transform-origin:center}
@@ -252,6 +252,19 @@
     <label>Голосовое предупреждение</label>
     <select id="setVoice"><option value="1">Включено</option><option value="0">Выключено</option></select>
   </div>
+  <div class="card" id="nativeSet" style="display:none">
+    <div style="font-size:20px;font-weight:800">Магнитола</div>
+    <label>Слушать «Привет, бусик» в фоне</label>
+    <select id="setWake"><option value="1">Включено</option><option value="0">Выключено</option></select>
+    <div class="note" id="wakeStatus" style="margin-top:6px"></div>
+    <label>Запускать при включении магнитолы</label>
+    <select id="setAuto"><option value="1">Включено</option><option value="0">Выключено</option></select>
+    <button id="btnOverlay" style="margin-top:12px;width:100%">Разрешить показ поверх других приложений</button>
+    <div class="note" style="margin-top:6px">Нужно, чтобы бусик сам выходил на экран при включении и по «Привет, бусик», даже поверх навигатора.</div>
+    <label>Сканер</label>
+    <button id="btnPickDev" style="width:100%">Выбрать другой сканер</button>
+    <div class="note" id="appVer" style="margin-top:10px"></div>
+  </div>
   <div class="card">
     <div style="font-size:20px;font-weight:800">ИИ-помощник (необязательно)</div>
     <div class="note" style="margin-top:6px">Без ИИ работают голосовые команды: «сколько топлива», «на сколько хватит», «температура», «наддув», «напряжение», «ошибки», «поехали на …». ИИ нужен только для свободных вопросов.</div>
@@ -313,6 +326,7 @@
 
 <script>
 "use strict";
+const NATIVE = !!(window.Android && window.Android.isNative);
 /* ---------------- Settings ---------------- */
 const DEF = {tank:80, low:12, fuelSrc:"auto", voice:"1", voiceName:"", greet:"1", key:"", model:"claude-haiku-5-5", provider:"none", gemKey:"", gemModel:"gemini-3.8-flash"};
 let S = Object.assign({}, DEF);
@@ -496,6 +510,7 @@ function feed(txt){
 let serialPort = null, serialWriter = null, serialReader = null;
 async function bleWrite(str){
   const data = new TextEncoder().encode(str);
+  if (NATIVE && nativeOn) { Android.btWrite(str); return; }
   if (serialWriter) { await serialWriter.write(data); return; }
   for (let i = 0; i < data.length; i += 20) {
     const chunk = data.slice(i, i + 20);
@@ -507,7 +522,7 @@ async function bleWrite(str){
 function cmd(c, timeout = 2500){
   const run = () => new Promise(async res => {
     if (demo) { res(fakeElm(c)); return; }
-    if (!chTx && !serialWriter) { res("NOT CONNECTED"); return; }
+    if (!chTx && !serialWriter && !nativeOn) { res("NOT CONNECTED"); return; }
     rxBuf = "";
     pending = {res: r => { log("> " + c + "  < " + r.replace(/[\r\n]+/g," | ").trim()); res(r); },
                t: setTimeout(() => { pending = null; log("> " + c + "  < TIMEOUT"); res("TIMEOUT"); }, timeout)};
@@ -550,8 +565,46 @@ async function connect(){
     setStatus("Ошибка: " + (e.message || e), "");
   }
 }
+/* ---------------- Native (APK) Bluetooth ---------------- */
+let nativeOn = false, nativeWait = null;
+window.onNativeData = txt => feed(txt);
+window.onNativeState = st => {
+  log("bt: " + st);
+  if (st === "connected") { nativeOn = true; if (nativeWait) { nativeWait.res(); nativeWait = null; } }
+  else {
+    const was = nativeOn; nativeOn = false;
+    if (nativeWait) { nativeWait.rej(new Error(st.replace(/^error:/, ""))); nativeWait = null; }
+    if (was) onDisconnect();
+  }
+};
+function pickDevice(){
+  return new Promise(res => {
+    let list = []; try { list = JSON.parse(Android.btList()); } catch(e){}
+    if (!list.length) { res(null); return; }
+    list.sort((a,b) => (/obd|elm|v-?link|scan/i.test(b.name) ? 1 : 0) - (/obd|elm|v-?link|scan/i.test(a.name) ? 1 : 0));
+    $("modalText").innerHTML = "<b>Выбери сканер</b><div id='devList' style='margin-top:12px;display:flex;flex-direction:column;gap:8px'></div>";
+    list.forEach(d => { const b = document.createElement("button"); b.textContent = d.name + "  ·  " + d.mac; b.style.textAlign = "left";
+      b.onclick = () => { $("modal").style.display = "none"; res(d.mac); }; $("devList").appendChild(b); });
+    $("modalYes").style.display = "none"; $("modalNo").onclick = () => { $("modal").style.display = "none"; res(null); };
+    $("modal").style.display = "flex";
+  }).finally(() => { $("modalYes").style.display = ""; });
+}
+async function connectNative(forcePick){
+  unlockAudio();
+  try {
+    let mac = forcePick ? "" : Android.btLast();
+    if (!mac) mac = await pickDevice();
+    if (!mac) { setStatus("Сканер не выбран. Спарь его в настройках Bluetooth магнитолы.", ""); return; }
+    setStatus("Подключаюсь к сканеру…", "busy");
+    await new Promise((res, rej) => { nativeWait = {res, rej}; Android.btConnect(mac); setTimeout(() => { if (nativeWait) { nativeWait = null; rej(new Error("нет ответа")); } }, 15000); });
+    demo = false; dev = {name: "OBDII"};
+    await startSession();
+  } catch(e) { setStatus("Не удалось подключиться: " + (e.message || e), ""); log("native: " + e); }
+}
+
 const SPP = "00001101-0000-1000-8000-00805f9b34fb";
 async function connectSerial(){
+  if (NATIVE) return connectNative(false);
   unlockAudio();
   if (!navigator.serial) {
     if (navigator.bluetooth) return connect();
@@ -579,7 +632,7 @@ async function connectSerial(){
     else setStatus("Ошибка: " + (e.message || e), "");
   }
 }
-function onDisconnect(){ serialWriter = null; polling = false; chTx = chRx = null; setStatus("Адаптер отключился", ""); }
+function onDisconnect(){ serialWriter = null; nativeOn = false; polling = false; chTx = chRx = null; setStatus("Адаптер отключился", ""); }
 function showEnvWarn(){
   const w = $("envWarn"); w.style.display = "block";
   w.innerHTML = "Bluetooth здесь недоступен. Открой приложение по прямой ссылке в <b>Chrome на Android</b>. Внутри окна Claude браузер Bluetooth не разрешает. Кнопка «Демо» работает везде.";
@@ -809,7 +862,8 @@ let voices = [];
 function femaleScore(v){ const n = (v.name + " " + v.voiceURI).toLowerCase();
   return /female|жен|milena|alena|alyona|irina|anna|svetlana|ekaterina|darya|dariya|tatyana|elena|#female|ruc|rud|ruf/.test(n) ? 1 : 0; }
 function loadVoices(){
-  try { voices = speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang)); } catch(e) { voices = []; }
+  if (NATIVE) { try { voices = JSON.parse(Android.voices()).map(v => ({voiceURI: v.id, name: v.name})); } catch(e) { voices = []; } }
+  else try { voices = speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang)); } catch(e) { voices = []; }
   const sel = $("setVoiceName"); sel.innerHTML = "";
   if (!voices.length) { sel.innerHTML = '<option value="">Системный русский голос</option>'; return; }
   voices.sort((a,b) => femaleScore(b) - femaleScore(a));
@@ -817,13 +871,23 @@ function loadVoices(){
   if (!S.voiceName || !voices.some(v => v.voiceURI === S.voiceName)) S.voiceName = voices[0].voiceURI;
   sel.value = S.voiceName;
 }
-try { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; } catch(e){}
+window.onNativeVoices = loadVoices;
+try { loadVoices(); if (!NATIVE) speechSynthesis.onvoiceschanged = loadVoices; } catch(e){}
 $("setVoiceName").onchange = e => { S.voiceName = e.target.value; saveS(); };
 $("btnTestVoice").onclick = () => speak("Привет, Дмитрий! Я твоя помощница в Транспортере.");
 function speak(text, showOrb = true){
   return new Promise(res => {
     let done = false;
     const fin = () => { if (done) return; done = true; orb.speaking = false; if (showOrb) orbSoftHide(); res(); };
+    if (NATIVE) {
+      if (showOrb) orbShow("speak", text);
+      orb.speaking = true; orb.energy = 1;
+      window.onTtsBoundary = () => { orb.energy = 1; };
+      window.onTtsDone = fin;
+      Android.speak(text, S.voiceName || "");
+      setTimeout(fin, Math.max(6000, text.length * 150));
+      return;
+    }
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text); u.lang = "ru-RU";
@@ -849,7 +913,7 @@ function orbShow(state, text){
 }
 function orbHide(){ clearTimeout(orb.hideT); orb.state = "off"; $("orb").style.display = "none"; if (orb.raf) cancelAnimationFrame(orb.raf); orb.raf = null; orb.parts = []; }
 function orbSoftHide(){ clearTimeout(orb.hideT); orb.hideT = setTimeout(() => { if (!aiBusy && !orb.speaking) orbHide(); }, 700); }
-$("orb").onclick = () => { try { speechSynthesis.cancel(); } catch(e){} try { curRec && curRec.abort(); } catch(e){} orb.speaking = false; orbHide(); };
+$("orb").onclick = () => { if (NATIVE) { try { Android.stopSpeak(); Android.stopListen(); } catch(e){} } try { speechSynthesis.cancel(); } catch(e){} try { curRec && curRec.abort(); } catch(e){} orb.speaking = false; orbHide(); };
 function hexPath(c, x, y, r){ c.beginPath(); for (let k = 0; k < 6; k++) { const a = Math.PI/3*k + Math.PI/6; c.lineTo(x + r*Math.cos(a), y + r*Math.sin(a)); } c.closePath(); }
 function orbLoop(now){
   const dt = Math.min(0.05, (now - orb.last) / 1000 || 0.016); orb.last = now; orb.t += dt;
@@ -863,7 +927,7 @@ function orbLoop(now){
     orb.energy *= Math.pow(0.08, dt);                         // затухание
     if (Math.random() < dt * 9) orb.energy = Math.max(orb.energy, 0.45 + Math.random()*0.55);   // «слоги»
     target = 0.25 + orb.energy * 0.85;
-  } else if (orb.state === "listen") { target = 0.18 + 0.08*Math.sin(t*3); hue = 172; spin = 0.08; }
+  } else if (orb.state === "listen") { orb.energy *= Math.pow(0.1, dt); target = 0.18 + 0.08*Math.sin(t*3) + orb.energy*0.5; hue = 172; spin = 0.08; }
   else if (orb.state === "think") { target = 0.22 + 0.06*Math.sin(t*6); hue = 205; spin = 0.9; }
   else target = 0.12;
   orb.lvl += (target - orb.lvl) * Math.min(1, dt * 14);
@@ -916,7 +980,14 @@ function orbLoop(now){
 /* ---------------- Claude ---------------- */
 let lastDtc = null, aiHistory = [], aiBusy = false, curRec = null;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const canListen = NATIVE || !!SR;
 function listen(){
+  if (NATIVE) return new Promise((res, rej) => {
+    window.onSttResult = t => res(t || null);
+    window.onSttError = e => rej(new Error(e));
+    window.onSttLevel = v => { orb.energy = Math.max(orb.energy, Math.min(1, Math.max(0, (v + 2) / 12))); };
+    Android.listen();
+  });
   return new Promise((res, rej) => {
     if (!SR) { rej(new Error("распознавание речи недоступно в этом браузере")); return; }
     const r = new SR(); curRec = r; r.lang = "ru-RU"; r.interimResults = false; r.maxAlternatives = 1;
@@ -994,8 +1065,8 @@ async function askClaude(q){
 function openNav(place){
   const url = "yandexnavi://map_search?text=" + encodeURIComponent(place);
   const b = $("navBtn"); b.style.display = "block"; b.textContent = "Навигатор: " + place;
-  b.onclick = () => { location.href = url; };
-  try { location.href = url; } catch(e){}
+  b.onclick = () => { if (NATIVE) Android.openUrl(url); else location.href = url; };
+  try { if (NATIVE) Android.openUrl(url); else location.href = url; } catch(e){}
 }
 function num(v){ return v == null ? null : parseFloat(String(v).replace(",", ".")); }
 function gv(pid){ const d = gEls[pid]; return d && !d.classList.contains("na") ? d.querySelector(".v").firstChild.textContent : null; }
@@ -1028,7 +1099,7 @@ async function converse(prefill){
   if (aiBusy) return; aiBusy = true; unlockAudio();
   const btn = $("askBtn");
   try {
-    speechSynthesis.cancel();
+    if (NATIVE) Android.stopSpeak(); else speechSynthesis.cancel();
     btn.className = "listening"; showAi("", "Слушаю…"); $("navBtn").style.display = "none";
     orbShow("listen", "");
     const q = await listen();
@@ -1065,7 +1136,7 @@ async function greet(){
   t += " Куда едем сегодня?";
   showAi("", t);
   await speak(t);
-  if (SR && !demo) converse("Ты только что поздоровалась и спросила, куда едем сегодня.");
+  if (canListen && !demo) converse("Ты только что поздоровалась и спросила, куда едем сегодня.");
 }
 
 /* ---------------- Demo ---------------- */
@@ -1110,7 +1181,23 @@ $("btnBle").onclick = connect;
 /* keep screen on while connected */
 async function keepAwake(){ try { if (navigator.wakeLock) await navigator.wakeLock.request("screen"); } catch(e){} }
 document.addEventListener("click", keepAwake, {once:true});
-if (!navigator.bluetooth && !navigator.serial) showEnvWarn();
+window.onWake = () => { if (!aiBusy) converse(); };
+if (NATIVE) {
+  $("btnBle").style.display = "none"; $("btnConnect").textContent = "Подключить сканер";
+  $("nativeSet").style.display = "block";
+  $("setWake").value = Android.getWake() ? "1" : "0";
+  $("setWake").onchange = e => Android.setWake(e.target.value === "1");
+  $("setAuto").value = Android.getAutostart() ? "1" : "0";
+  $("setAuto").onchange = e => Android.setAutostart(e.target.value === "1");
+  $("btnOverlay").onclick = () => Android.requestOverlay();
+  $("btnPickDev").onclick = () => { polling = false; try { Android.btClose(); } catch(e){} connectNative(true); };
+  $("appVer").textContent = "Версия приложения: " + Android.version();
+  const upd = () => { $("wakeStatus").textContent = "Состояние: " + Android.wakeStatus(); $("btnOverlay").style.display = Android.hasOverlay() ? "none" : "block"; };
+  upd(); setInterval(upd, 3000);
+  window.onNativePermissions = () => { loadVoices(); };
+  // автоподключение к последнему сканеру
+  if (Android.btLast()) setTimeout(() => connectNative(false), 1500);
+} else if (!navigator.bluetooth && !navigator.serial) showEnvWarn();
 </script>
 </body>
 </html>
