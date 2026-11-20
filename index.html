@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0f14">
+<meta name="theme-color" content="#15120e">
 <title>T5 Дмитрия — бортовой сканер</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#16123a; --card:#231d55; --card2:#2e2770; --text:#fff8ec; --muted:#b7addf;
-    --accent:#ffb627; --ok:#3ee08f; --warn:#ffb627; --bad:#ff5a6e; --line:#3a3285;
-    --van:#ff7a3d; --van2:#fff4e0;
+    --bg:#15120e; --card:#221d17; --card2:#2e271f; --text:#fff6e8; --muted:#c7b79d;
+    --accent:#ffb627; --ok:#3ee08f; --warn:#ffb627; --bad:#ff5a6e; --line:#3f3427;
+    --van:#2f53d0; --van2:#4b5059;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:radial-gradient(120% 80% at 50% 0%,#2b2378 0%,var(--bg) 60%) fixed;color:var(--text);font-family:Nunito,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  html,body{margin:0;background:radial-gradient(120% 80% at 50% 0%,#33281a 0%,var(--bg) 60%) fixed;color:var(--text);font-family:Nunito,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
   body{padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 90px)}
   h1{margin:0;font-size:clamp(40px,13vw,72px);line-height:.95;letter-spacing:.02em;font-weight:900}
   .sub{font-size:clamp(17px,4.6vw,24px);color:var(--accent);font-weight:700;margin:6px 0 14px}
@@ -30,7 +30,7 @@
   .dot.on{background:var(--ok)} .dot.busy{background:var(--warn)}
 
   /* Van hero */
-  #hero{position:relative;padding:10px 12px 16px;text-align:center;overflow:hidden}
+  #hero{position:relative;padding:10px 12px 16px;text-align:center;overflow:hidden;background:radial-gradient(90% 70% at 50% 35%,#4a3420 0%,var(--card) 75%)}
   #van{width:100%;max-width:420px;display:block;margin:0 auto}
   #van .bob{transform-origin:160px 120px}
   #van.run .bob{animation:bob .5s ease-in-out infinite}
@@ -75,10 +75,10 @@
   .g .n{font-size:13px;color:var(--muted);font-weight:800}
   .g .v{font-size:30px;font-weight:900;margin-top:2px}
   .g .u{font-size:14px;color:var(--muted);font-weight:600;margin-left:3px}
-  .g.na .v{color:#4a5a6e;font-size:20px}
+  .g.na .v{color:#6e6252;font-size:20px}
 
   /* Tabs */
-  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#120e30;border-top:2px solid var(--line);
+  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#100d0a;border-top:2px solid var(--line);
     padding:6px 6px calc(env(safe-area-inset-bottom) + 6px);z-index:10}
   nav button{flex:1;background:transparent;color:var(--muted);padding:12px 4px;font-size:15px}
   nav button.act{color:var(--accent)}
@@ -119,36 +119,66 @@
 <!-- DASH -->
 <section id="tab-dash" class="tab act">
   <div id="hero" class="card">
-    <svg id="van" class="sleep" viewBox="-40 0 360 170" aria-label="Бусик">
-      <ellipse cx="160" cy="160" rx="140" ry="6" fill="rgba(0,0,0,.3)"/>
-      <g class="puff"><circle cx="12" cy="128" r="8" fill="#cfc8ff"/></g>
-      <g class="puff p2"><circle cx="12" cy="128" r="7" fill="#cfc8ff"/></g>
-      <g class="puff p3"><circle cx="12" cy="128" r="6" fill="#cfc8ff"/></g>
+    <svg id="van" class="sleep" viewBox="-40 0 360 170" aria-label="Бусик — синий T5 Дмитрия">
+      <defs>
+        <linearGradient id="vanShine" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#5b7cff"/><stop offset=".45" stop-color="var(--van)"/><stop offset="1" stop-color="#1f3592"/>
+        </linearGradient>
+        <linearGradient id="tint" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#2a3550"/><stop offset=".55" stop-color="#121826"/><stop offset="1" stop-color="#1c2438"/>
+        </linearGradient>
+      </defs>
+      <ellipse cx="164" cy="160" rx="146" ry="6" fill="rgba(0,0,0,.35)"/>
+      <g class="puff"><circle cx="16" cy="130" r="8" fill="#d9d0c2"/></g>
+      <g class="puff p2"><circle cx="16" cy="130" r="7" fill="#d9d0c2"/></g>
+      <g class="puff p3"><circle cx="16" cy="130" r="6" fill="#d9d0c2"/></g>
       <g class="bob">
-        <path id="vanBody" d="M28 52 Q28 30 50 30 H236 Q256 30 266 46 L292 88 Q298 98 298 110 V126 Q298 136 288 136 H38 Q28 136 28 126 Z" fill="var(--van)" stroke="#2a1a3a" stroke-width="4"/>
-        <path d="M28 86 H296 V126 Q296 136 286 136 H38 Q28 136 28 126 Z" fill="var(--van2)" stroke="#2a1a3a" stroke-width="4" opacity=".95"/>
-        <rect x="46" y="44" width="52" height="34" rx="8" fill="#9fe7ff" stroke="#2a1a3a" stroke-width="4"/>
-        <rect x="108" y="44" width="52" height="34" rx="8" fill="#9fe7ff" stroke="#2a1a3a" stroke-width="4"/>
-        <rect x="170" y="44" width="44" height="34" rx="8" fill="#9fe7ff" stroke="#2a1a3a" stroke-width="4"/>
-        <path d="M224 44 H250 Q258 44 263 52 L280 80 H224 Z" fill="#bff0ff" stroke="#2a1a3a" stroke-width="4" stroke-linejoin="round"/>
-        <!-- eyes -->
+        <!-- кузов: высокая крыша, наклонное лобовое, короткий капот -->
+        <path id="vanBody" d="M30 128 V34 Q30 14 50 14 H226 Q246 14 254 28 L282 80 Q298 86 300 102 V128 Z" fill="url(#vanShine)" stroke="#0d1330" stroke-width="4" stroke-linejoin="round"/>
+        <!-- арки колёс -->
+        <circle cx="86" cy="136" r="26" fill="#0d1330"/>
+        <circle cx="236" cy="136" r="26" fill="#0d1330"/>
+        <!-- боковой молдинг-линия -->
+        <path d="M34 92 H296" stroke="#1a2c7a" stroke-width="2.5" opacity=".7"/>
+        <!-- тонированные окна: заднее и длинное боковое -->
+        <rect x="42" y="30" width="58" height="48" rx="7" fill="url(#tint)" stroke="#0d1330" stroke-width="4"/>
+        <rect x="108" y="30" width="104" height="48" rx="7" fill="url(#tint)" stroke="#0d1330" stroke-width="4"/>
+        <path d="M118 36 L140 36 L122 72 L114 72 Z M150 36 L160 36 L142 72 L136 72 Z" fill="#fff" opacity=".1"/>
+        <!-- линия сдвижной двери и ручка -->
+        <path d="M104 80 V124 M216 30 V124" stroke="#0d1330" stroke-width="2.5" opacity=".75"/>
+        <rect x="196" y="86" width="12" height="4" rx="2" fill="#0d1330" opacity=".8"/>
+        <!-- стекло водительской двери (на нём глаза) -->
+        <path d="M222 30 H244 Q252 30 256 38 L278 80 H222 Z" fill="#a9dcff" stroke="#0d1330" stroke-width="4" stroke-linejoin="round"/>
+        <!-- зеркало -->
+        <path d="M268 70 h12 q4 0 4 4 v8 q0 4 -4 4 h-8 z" fill="#1b1e26" stroke="#0d1330" stroke-width="2.5"/>
+        <!-- задний фонарь -->
+        <rect x="27" y="84" width="9" height="28" rx="3" fill="#e8283c" stroke="#0d1330" stroke-width="2.5"/>
+        <!-- серые бамперы и пороги -->
+        <path d="M260 112 H300 V130 Q300 138 292 138 H262 Z" fill="var(--van2)" stroke="#0d1330" stroke-width="3.5" stroke-linejoin="round"/>
+        <path d="M24 116 H44 V138 H30 Q24 138 24 132 Z" fill="var(--van2)" stroke="#0d1330" stroke-width="3.5" stroke-linejoin="round"/>
+        <rect x="110" y="126" width="102" height="6" rx="3" fill="var(--van2)" stroke="#0d1330" stroke-width="2"/>
+        <!-- решётка радиатора -->
+        <path d="M290 104 H299 M288 109 H299" stroke="#0d1330" stroke-width="2" opacity=".6"/>
+        <!-- глаза -->
         <g id="eyes">
-          <ellipse cx="240" cy="62" rx="9" ry="11" fill="#fff" stroke="#2a1a3a" stroke-width="3"/>
-          <ellipse cx="262" cy="64" rx="8" ry="10" fill="#fff" stroke="#2a1a3a" stroke-width="3"/>
-          <circle class="pupil" cx="242" cy="64" r="4.5" fill="#2a1a3a"/>
-          <circle class="pupil" cx="263" cy="66" r="4" fill="#2a1a3a"/>
-          <path id="lids" d="" fill="var(--van)" stroke="#2a1a3a" stroke-width="3"/>
+          <ellipse cx="240" cy="58" rx="9" ry="11" fill="#fff" stroke="#0d1330" stroke-width="3"/>
+          <ellipse cx="262" cy="62" rx="8" ry="10" fill="#fff" stroke="#0d1330" stroke-width="3"/>
+          <circle class="pupil" cx="242" cy="60" r="4.5" fill="#0d1330"/>
+          <circle class="pupil" cx="263" cy="64" r="4" fill="#0d1330"/>
+          <path id="lids" d="" fill="#a9dcff" stroke="#0d1330" stroke-width="3"/>
         </g>
-        <path id="brows" d="M231 47 L248 49 M256 50 L270 54" stroke="#2a1a3a" stroke-width="3.5" stroke-linecap="round" fill="none"/>
-        <path class="tear" d="M236 76 q-4 7 0 10 q4 -3 0 -10z" fill="#6fd3ff"/>
-        <circle cx="286" cy="100" r="7" fill="#fff6a8" stroke="#2a1a3a" stroke-width="3"/>
-        <path id="mouth" d="M252 114 Q266 126 282 114" stroke="#2a1a3a" stroke-width="4" stroke-linecap="round" fill="none"/>
-        <circle cx="244" cy="104" r="5" fill="#ff9aa8" opacity=".7"/>
-        <text class="zz" x="276" y="34" font-size="18" font-weight="900" fill="#cfc8ff">z z</text>
-        <g class="spark"><path d="M300 30 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#ffe36a"/></g>
+        <path id="brows" d="M231 43 L248 45 M256 48 L270 52" stroke="#0d1330" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <path class="tear" d="M236 72 q-4 7 0 10 q4 -3 0 -10z" fill="#6fd3ff"/>
+        <!-- фара -->
+        <path d="M282 88 Q294 88 299 96 V102 H284 Z" fill="#fff6a8" stroke="#0d1330" stroke-width="3" stroke-linejoin="round"/>
+        <path id="mouth" d="M252 104 Q266 116 282 104" stroke="#fff3df" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <circle cx="244" cy="102" r="5" fill="#ff9aa8" opacity=".7"/>
+        <text class="zz" x="270" y="14" font-size="18" font-weight="900" fill="#e8dcc6">z z</text>
+        <g class="spark"><path d="M300 22 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#ffd23f"/></g>
       </g>
-      <g class="wheel"><circle cx="86" cy="136" r="21" fill="#2a1a3a"/><circle cx="86" cy="136" r="10" fill="#cfc8ff"/><path d="M86 127 V145 M77 136 H95" stroke="#2a1a3a" stroke-width="3"/></g>
-      <g class="wheel"><circle cx="236" cy="136" r="21" fill="#2a1a3a"/><circle cx="236" cy="136" r="10" fill="#cfc8ff"/><path d="M236 127 V145 M227 136 H245" stroke="#2a1a3a" stroke-width="3"/></g>
+      <!-- чёрные литые диски -->
+      <g class="wheel"><circle cx="86" cy="136" r="21" fill="#121318" stroke="#2c2f36" stroke-width="2"/><circle cx="86" cy="136" r="14" fill="#1d1f25" stroke="#4a4e57" stroke-width="1.5"/><path d="M86 136 L86 123 M86 136 L98.4 132 M86 136 L93.6 146.5 M86 136 L78.4 146.5 M86 136 L73.6 132" stroke="#4a4e57" stroke-width="4" stroke-linecap="round"/><circle cx="86" cy="136" r="3.5" fill="#5b606a"/></g>
+      <g class="wheel"><circle cx="236" cy="136" r="21" fill="#121318" stroke="#2c2f36" stroke-width="2"/><circle cx="236" cy="136" r="14" fill="#1d1f25" stroke="#4a4e57" stroke-width="1.5"/><path d="M236 136 L236 123 M236 136 L248.4 132 M236 136 L243.6 146.5 M236 136 L228.4 146.5 M236 136 L223.6 132" stroke="#4a4e57" stroke-width="4" stroke-linecap="round"/><circle cx="236" cy="136" r="3.5" fill="#5b606a"/></g>
     </svg>
     <div id="mood">Сплю… Подключи сканер, и поедем!</div>
   </div>
@@ -373,20 +403,20 @@ let fuel = {l:null, pct:null, src:""};
 let lowAcked = false, lastAlert = 0;
 /* ---------------- Van mood ---------------- */
 const MOUTH = {
-  happy: "M252 112 Q267 128 284 112",
-  ok:    "M254 116 Q267 122 280 116",
-  worry: "M254 120 Q267 112 280 120",
-  sad:   "M254 122 Q267 108 280 122",
-  sleep: "M258 118 H276",
-  hot:   "M256 118 Q260 112 264 118 Q268 124 272 118 Q276 112 280 118"
+  happy: "M252 102 Q267 118 284 102",
+  ok:    "M254 106 Q267 112 280 106",
+  worry: "M254 110 Q267 102 280 110",
+  sad:   "M254 112 Q267 98 280 112",
+  sleep: "M258 108 H276",
+  hot:   "M256 108 Q260 102 264 108 Q268 114 272 108 Q276 102 280 108"
 };
 const BROWS = {
-  happy: "M231 45 Q240 40 248 46 M256 48 Q264 44 270 50",
-  ok:    "M231 47 L248 49 M256 50 L270 54",
-  worry: "M231 50 L248 45 M256 47 L270 52",
-  sad:   "M231 52 L248 45 M256 46 L270 54",
-  sleep: "M231 50 L248 50 M256 53 L270 53",
-  hot:   "M231 46 L248 52 M256 54 L270 48"
+  happy: "M231 41 Q240 36 248 42 M256 44 Q264 40 270 46",
+  ok:    "M231 43 L248 45 M256 46 L270 50",
+  worry: "M231 46 L248 41 M256 43 L270 48",
+  sad:   "M231 48 L248 41 M256 42 L270 50",
+  sleep: "M231 46 L248 46 M256 49 L270 49",
+  hot:   "M231 42 L248 48 M256 50 L270 44"
 };
 let lastMood = "";
 function updateVan(){
@@ -409,7 +439,7 @@ function updateVan(){
   ["happy","sad","sleep"].forEach(c => van.classList.toggle(c, mood === c));
   $("mouth").setAttribute("d", MOUTH[mood]);
   $("brows").setAttribute("d", BROWS[mood]);
-  $("lids").setAttribute("d", mood === "sleep" ? "M230 62 Q240 50 250 62 Z M253 64 Q262 53 271 64 Z" : "");
+  $("lids").setAttribute("d", mood === "sleep" ? "M230 58 Q240 46 250 58 Z M253 62 Q262 51 271 62 Z" : "");
   const look = spd > 2 ? 2 : (mood === "sad" ? -1 : 0);
   document.querySelectorAll("#van .pupil").forEach(p => p.style.transform = `translate(${look}px, ${mood === "sad" ? 2 : 0}px)`);
   if (text !== lastMood) { $("mood").textContent = text; lastMood = text; }
