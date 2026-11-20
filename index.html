@@ -5,36 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0f14">
 <title>T5 Дмитрия — бортовой сканер</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0b0f14; --card:#141b23; --card2:#1b2430; --text:#eef3f8; --muted:#8a99ab;
-    --accent:#3fa7ff; --ok:#35d07f; --warn:#ffb020; --bad:#ff4d4f; --line:#243041;
+    --bg:#16123a; --card:#231d55; --card2:#2e2770; --text:#fff8ec; --muted:#b7addf;
+    --accent:#ffb627; --ok:#3ee08f; --warn:#ffb627; --bad:#ff5a6e; --line:#3a3285;
+    --van:#ff7a3d; --van2:#fff4e0;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  html,body{margin:0;background:radial-gradient(120% 80% at 50% 0%,#2b2378 0%,var(--bg) 60%) fixed;color:var(--text);font-family:Nunito,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
   body{padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 90px)}
   h1{margin:0;font-size:clamp(40px,13vw,72px);line-height:.95;letter-spacing:.02em;font-weight:900}
   .sub{font-size:clamp(17px,4.6vw,24px);color:var(--accent);font-weight:700;margin:6px 0 14px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:26px;padding:16px;margin-bottom:12px}
+  button{transition:transform .1s} button:active{transform:scale(.96)}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   button{font:inherit;font-weight:700;border:0;border-radius:14px;padding:14px 16px;background:var(--card2);color:var(--text);cursor:pointer}
-  button.primary{background:var(--accent);color:#04121f}
+  button.primary{background:var(--accent);color:#2a1a00;box-shadow:0 4px 0 #c98400}
   button.danger{background:var(--bad);color:#fff}
   button:disabled{opacity:.45}
   .status{font-size:15px;color:var(--muted)}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:middle}
   .dot.on{background:var(--ok)} .dot.busy{background:var(--warn)}
 
+  /* Van hero */
+  #hero{position:relative;padding:10px 12px 16px;text-align:center;overflow:hidden}
+  #van{width:100%;max-width:420px;display:block;margin:0 auto}
+  #van .bob{transform-origin:160px 120px}
+  #van.run .bob{animation:bob .5s ease-in-out infinite}
+  #van.drive .wheel{animation:spin .6s linear infinite}
+  #van .wheel{transform-box:fill-box;transform-origin:center}
+  #van .puff{opacity:0}
+  #van.run .puff{animation:puff 1.4s ease-out infinite}
+  #van.run .puff.p2{animation-delay:.45s} #van.run .puff.p3{animation-delay:.9s}
+  #van .pupil{transition:transform .3s}
+  #van .tear{opacity:0;transition:opacity .4s} #van.sad .tear{opacity:1;animation:drip 1.6s ease-in infinite}
+  #van .spark{opacity:0} #van.happy .spark{opacity:1;animation:twinkle 1.2s ease-in-out infinite}
+  #van .zz{opacity:0} #van.sleep .zz{opacity:1;animation:zz 2s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(-3px)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes puff{0%{opacity:.8;transform:translate(0,0) scale(.5)}100%{opacity:0;transform:translate(-30px,-18px) scale(1.6)}}
+  @keyframes drip{0%{transform:translateY(0);opacity:1}100%{transform:translateY(14px);opacity:0}}
+  @keyframes twinkle{50%{transform:scale(.6);opacity:.4}}
+  @keyframes zz{50%{transform:translate(4px,-6px);opacity:.5}}
+  #mood{font-size:21px;font-weight:900;margin-top:2px;min-height:28px}
+
   /* Fuel */
-  #fuelCard{text-align:center;padding:18px 16px 20px;transition:background .3s}
-  #fuelCard .lbl{font-size:20px;font-weight:800;letter-spacing:.08em;color:var(--muted)}
-  #fuelL{font-size:clamp(90px,30vw,170px);font-weight:900;line-height:1;margin:4px 0}
+  #fuelCard{text-align:center;padding:14px 16px 18px;transition:background .3s}
+  #fuelCard .lbl{font-size:18px;font-weight:900;letter-spacing:.1em;color:var(--muted)}
+  #fuelL{font-size:clamp(84px,28vw,160px);font-weight:900;line-height:1;margin:2px 0;color:var(--accent);text-shadow:0 6px 0 rgba(0,0,0,.25)}
   #fuelL small{font-size:.32em;font-weight:800;color:var(--muted)}
   #fuelPct{font-size:22px;font-weight:700;color:var(--muted)}
-  .bar{height:22px;border-radius:12px;background:var(--card2);overflow:hidden;margin-top:12px}
+  .bar{height:26px;border-radius:14px;background:var(--card2);overflow:hidden;margin-top:12px;border:2px solid var(--line)}
   .bar>div{height:100%;width:0;background:var(--ok);transition:width .6s,background .3s}
   #fuelSrc{font-size:13px;color:var(--muted);margin-top:8px}
-  #fuelCard.low{background:#3a0d10;border-color:var(--bad);animation:pulse 1.2s infinite}
+  #fuelCard.low{background:#4a1530;border-color:var(--bad);animation:pulse 1.2s infinite}
   #fuelCard.low #fuelL,#fuelCard.low .lbl{color:#ff7a7c}
   @keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,77,79,.35)}}
 
@@ -45,14 +71,14 @@
 
   /* Gauges */
   .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-  .g{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
-  .g .n{font-size:13px;color:var(--muted);font-weight:600}
-  .g .v{font-size:30px;font-weight:800;margin-top:2px}
+  .g{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:12px 12px 10px}
+  .g .n{font-size:13px;color:var(--muted);font-weight:800}
+  .g .v{font-size:30px;font-weight:900;margin-top:2px}
   .g .u{font-size:14px;color:var(--muted);font-weight:600;margin-left:3px}
   .g.na .v{color:#4a5a6e;font-size:20px}
 
   /* Tabs */
-  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#0e141b;border-top:1px solid var(--line);
+  nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#120e30;border-top:2px solid var(--line);
     padding:6px 6px calc(env(safe-area-inset-bottom) + 6px);z-index:10}
   nav button{flex:1;background:transparent;color:var(--muted);padding:12px 4px;font-size:15px}
   nav button.act{color:var(--accent)}
@@ -68,11 +94,17 @@
   .note{font-size:14px;color:var(--muted);line-height:1.45}
   .warnbox{background:#2b2108;border:1px solid #5a4410;color:#ffd77a;border-radius:14px;padding:12px;font-size:14px;line-height:1.45;margin-bottom:12px;display:none}
   #askBtn{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 74px);z-index:11;width:76px;height:76px;border-radius:50%;
-    background:var(--accent);color:#04121f;font-size:32px;box-shadow:0 8px 24px rgba(0,0,0,.5);padding:0}
+    background:var(--accent);color:#2a1a00;font-size:32px;box-shadow:0 5px 0 #c98400,0 10px 24px rgba(0,0,0,.5);padding:0}
   #askBtn.listening{background:var(--bad);color:#fff;animation:pulse 1s infinite}
   #askBtn.thinking{background:var(--warn)}
   #aiCard .q{color:var(--muted);font-size:15px;margin-bottom:6px}
   #aiCard .a{font-size:19px;line-height:1.4}
+  #orb{position:fixed;inset:0;background:#000;z-index:25;display:none;flex-direction:column;align-items:center;justify-content:flex-end;
+    padding:0 24px calc(env(safe-area-inset-bottom) + 40px)}
+  #orbCv{position:absolute;inset:0;width:100%;height:100%}
+  #orbState{position:relative;font-size:15px;font-weight:900;letter-spacing:.2em;color:#5ff0ff;text-transform:uppercase;margin-bottom:10px}
+  #orbText{position:relative;font-size:21px;line-height:1.4;text-align:center;color:#e9fdff;max-width:560px;min-height:60px;text-shadow:0 0 12px rgba(41,230,255,.5)}
+  #orbHint{position:relative;font-size:13px;color:#4c7c86;margin-top:16px}
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:30;align-items:center;justify-content:center;padding:20px}
   #modal .card{max-width:420px;width:100%}
 </style>
@@ -81,34 +113,63 @@
 
 <div id="lowBanner"><b>МАЛО ТОПЛИВА!</b><span id="lowText">Дмитрий, пора на заправку</span><br><button id="lowOk">Понял</button></div>
 
-<header>
-  <h1>ДМИТРИЙ</h1>
-  <div class="sub">специально для тебя и твоего T5</div>
-</header>
 
 <div id="envWarn" class="warnbox"></div>
 
-<div class="card">
-  <div class="row" style="justify-content:space-between">
-    <div class="status"><span id="dot" class="dot"></span><span id="status">Не подключено</span></div>
-  </div>
-  <div class="row" style="margin-top:12px">
-    <button id="btnConnect" class="primary" style="flex:1">Подключить сканер</button>
-    <button id="btnDemo">Демо</button>
-  </div>
-  <div class="row" style="margin-top:8px">
-    <button id="btnBle" style="flex:1;font-size:14px;padding:10px">Подключить BLE-адаптер</button>
-  </div>
-</div>
-
 <!-- DASH -->
 <section id="tab-dash" class="tab act">
+  <div id="hero" class="card">
+    <svg id="van" class="sleep" viewBox="-40 0 360 170" aria-label="Бусик">
+      <ellipse cx="160" cy="160" rx="140" ry="6" fill="rgba(0,0,0,.3)"/>
+      <g class="puff"><circle cx="12" cy="128" r="8" fill="#cfc8ff"/></g>
+      <g class="puff p2"><circle cx="12" cy="128" r="7" fill="#cfc8ff"/></g>
+      <g class="puff p3"><circle cx="12" cy="128" r="6" fill="#cfc8ff"/></g>
+      <g class="bob">
+        <path id="vanBody" d="M28 52 Q28 30 50 30 H236 Q256 30 266 46 L292 88 Q298 98 298 110 V126 Q298 136 288 136 H38 Q28 136 28 126 Z" fill="var(--van)" stroke="#2a1a3a" stroke-width="4"/>
+        <path d="M28 86 H296 V126 Q296 136 286 136 H38 Q28 136 28 126 Z" fill="var(--van2)" stroke="#2a1a3a" stroke-width="4" opacity=".95"/>
+        <rect x="46" y="44" width="52" height="34" rx="8" fill="#9fe7ff" stroke="#2a1a3a" stroke-width="4"/>
+        <rect x="108" y="44" width="52" height="34" rx="8" fill="#9fe7ff" stroke="#2a1a3a" stroke-width="4"/>
+        <rect x="170" y="44" width="44" height="34" rx="8" fill="#9fe7ff" stroke="#2a1a3a" stroke-width="4"/>
+        <path d="M224 44 H250 Q258 44 263 52 L280 80 H224 Z" fill="#bff0ff" stroke="#2a1a3a" stroke-width="4" stroke-linejoin="round"/>
+        <!-- eyes -->
+        <g id="eyes">
+          <ellipse cx="240" cy="62" rx="9" ry="11" fill="#fff" stroke="#2a1a3a" stroke-width="3"/>
+          <ellipse cx="262" cy="64" rx="8" ry="10" fill="#fff" stroke="#2a1a3a" stroke-width="3"/>
+          <circle class="pupil" cx="242" cy="64" r="4.5" fill="#2a1a3a"/>
+          <circle class="pupil" cx="263" cy="66" r="4" fill="#2a1a3a"/>
+          <path id="lids" d="" fill="var(--van)" stroke="#2a1a3a" stroke-width="3"/>
+        </g>
+        <path id="brows" d="M231 47 L248 49 M256 50 L270 54" stroke="#2a1a3a" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        <path class="tear" d="M236 76 q-4 7 0 10 q4 -3 0 -10z" fill="#6fd3ff"/>
+        <circle cx="286" cy="100" r="7" fill="#fff6a8" stroke="#2a1a3a" stroke-width="3"/>
+        <path id="mouth" d="M252 114 Q266 126 282 114" stroke="#2a1a3a" stroke-width="4" stroke-linecap="round" fill="none"/>
+        <circle cx="244" cy="104" r="5" fill="#ff9aa8" opacity=".7"/>
+        <text class="zz" x="276" y="34" font-size="18" font-weight="900" fill="#cfc8ff">z z</text>
+        <g class="spark"><path d="M300 30 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#ffe36a"/></g>
+      </g>
+      <g class="wheel"><circle cx="86" cy="136" r="21" fill="#2a1a3a"/><circle cx="86" cy="136" r="10" fill="#cfc8ff"/><path d="M86 127 V145 M77 136 H95" stroke="#2a1a3a" stroke-width="3"/></g>
+      <g class="wheel"><circle cx="236" cy="136" r="21" fill="#2a1a3a"/><circle cx="236" cy="136" r="10" fill="#cfc8ff"/><path d="M236 127 V145 M227 136 H245" stroke="#2a1a3a" stroke-width="3"/></g>
+    </svg>
+    <div id="mood">Сплю… Подключи сканер, и поедем!</div>
+  </div>
   <div id="fuelCard" class="card">
-    <div class="lbl">ТОПЛИВО</div>
+    <div class="lbl">⛽ ТОПЛИВО</div>
     <div id="fuelL">--<small> л</small></div>
     <div id="fuelPct">—</div>
     <div class="bar"><div id="fuelBar"></div></div>
     <div id="fuelSrc">нет данных</div>
+  </div>
+<div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="status"><span id="dot" class="dot"></span><span id="status">Не подключено</span></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="btnConnect" class="primary" style="flex:1">Подключить сканер</button>
+      <button id="btnDemo">Демо</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="btnBle" style="flex:1;font-size:14px;padding:10px">Подключить BLE-адаптер</button>
+    </div>
   </div>
   <div id="aiCard" class="card" style="display:none">
     <div style="font-size:13px;font-weight:800;color:var(--accent);letter-spacing:.08em;margin-bottom:6px">ПОМОЩНИЦА</div>
@@ -211,6 +272,8 @@
   <button data-tab="set">Настройки</button>
 </nav>
 
+<div id="orb"><canvas id="orbCv"></canvas><div id="orbState"></div><div id="orbText"></div><div id="orbHint">нажми, чтобы закрыть</div></div>
+
 <div id="modal"><div class="card">
   <div id="modalText" style="font-size:18px;line-height:1.4"></div>
   <div class="row" style="margin-top:16px;justify-content:flex-end">
@@ -273,18 +336,18 @@ function setStatus(text, state){ $("status").textContent = text; $("dot").classN
 /* ---------------- Gauges ---------------- */
 // Standard OBD-II PIDs (mode 01)
 const PIDS = [
-  {pid:"0C", n:"Обороты",            u:"об/мин", f:b => ((b[0]*256+b[1])/4).toFixed(0)},
-  {pid:"0D", n:"Скорость",           u:"км/ч",   f:b => b[0]},
-  {pid:"05", n:"Темп. ОЖ",           u:"°C",     f:b => b[0]-40},
-  {pid:"0F", n:"Темп. впуска",       u:"°C",     f:b => b[0]-40},
+  {pid:"0C", n:"🌀 Обороты",            u:"об/мин", f:b => ((b[0]*256+b[1])/4).toFixed(0)},
+  {pid:"0D", n:"🏁 Скорость",           u:"км/ч",   f:b => b[0]},
+  {pid:"05", n:"🌡️ Темп. ОЖ",           u:"°C",     f:b => b[0]-40},
+  {pid:"0F", n:"💨 Темп. впуска",       u:"°C",     f:b => b[0]-40},
   {pid:"0B", n:"Давл. во впуске",    u:"бар",    f:b => (b[0]/100).toFixed(2), raw:b => b[0]},
-  {pid:"BOOST", n:"Наддув (изб.)",   u:"бар",    virtual:true},
-  {pid:"23", n:"Давление в рейке",   u:"бар",    f:b => ((b[0]*256+b[1])*10/100).toFixed(0)},
+  {pid:"BOOST", n:"🚀 Наддув",   u:"бар",    virtual:true},
+  {pid:"23", n:"💉 Давл. в рейке",   u:"бар",    f:b => ((b[0]*256+b[1])*10/100).toFixed(0)},
   {pid:"10", n:"Расход воздуха",     u:"г/с",    f:b => ((b[0]*256+b[1])/100).toFixed(1)},
   {pid:"04", n:"Нагрузка",           u:"%",      f:b => (b[0]*100/255).toFixed(0)},
   {pid:"2C", n:"EGR (задано)",       u:"%",      f:b => (b[0]*100/255).toFixed(0)},
-  {pid:"42", n:"Напряжение",         u:"В",      f:b => ((b[0]*256+b[1])/1000).toFixed(1)},
-  {pid:"5C", n:"Темп. масла",        u:"°C",     f:b => b[0]-40},
+  {pid:"42", n:"🔋 Напряжение",         u:"В",      f:b => ((b[0]*256+b[1])/1000).toFixed(1)},
+  {pid:"5C", n:"🛢️ Темп. масла",        u:"°C",     f:b => b[0]-40},
   {pid:"7C", n:"Темп. сажевика",     u:"°C",     f:b => ((b[0]*256+b[1])/10-40).toFixed(0)},
   {pid:"33", n:"Атм. давление",      u:"бар",    f:b => (b[0]/100).toFixed(2), raw:b => b[0]},
 ];
@@ -308,6 +371,51 @@ function setGauge(pid, val, unit){
 /* ---------------- Fuel ---------------- */
 let fuel = {l:null, pct:null, src:""};
 let lowAcked = false, lastAlert = 0;
+/* ---------------- Van mood ---------------- */
+const MOUTH = {
+  happy: "M252 112 Q267 128 284 112",
+  ok:    "M254 116 Q267 122 280 116",
+  worry: "M254 120 Q267 112 280 120",
+  sad:   "M254 122 Q267 108 280 122",
+  sleep: "M258 118 H276",
+  hot:   "M256 118 Q260 112 264 118 Q268 124 272 118 Q276 112 280 118"
+};
+const BROWS = {
+  happy: "M231 45 Q240 40 248 46 M256 48 Q264 44 270 50",
+  ok:    "M231 47 L248 49 M256 50 L270 54",
+  worry: "M231 50 L248 45 M256 47 L270 52",
+  sad:   "M231 52 L248 45 M256 46 L270 54",
+  sleep: "M231 50 L248 50 M256 53 L270 53",
+  hot:   "M231 46 L248 52 M256 54 L270 48"
+};
+let lastMood = "";
+function updateVan(){
+  const van = $("van"); if (!van) return;
+  const live = polling || demo;
+  const rpm = num(gv("0C")) || 0, spd = num(gv("0D")) || 0, cool = num(gv("05")), volt = num(gv("42"));
+  let mood = "sleep", text = "Сплю… Подключи сканер, и поедем!";
+  if (live) {
+    mood = "ok"; text = "Всё хорошо, едем! 🚐";
+    if (fuel.l != null && fuel.pct >= 60) { mood = "happy"; text = "Сыт и счастлив! 😋"; }
+    if (cool != null && cool < 50 && rpm > 0) { mood = "worry"; text = "Брр, холодно… дай прогреться 🥶"; }
+    if (volt != null && volt < 12) { mood = "worry"; text = "Что-то сил маловато… проверь аккумулятор 🔋"; }
+    if (fuel.l != null && fuel.l <= S.low * 2 && fuel.l > S.low) { mood = "worry"; text = "Скоро проголодаюсь… ⛽"; }
+    if (fuel.l != null && fuel.l <= S.low) { mood = "sad"; text = "Хочу есть! Заправь меня 🥺"; }
+    if (cool != null && cool > 105) { mood = "hot"; text = "Мне жарко! Следи за температурой 🥵"; }
+    if (spd > 110) { text = "Уиии! Но потише, пожалуйста 😅"; }
+  }
+  van.classList.toggle("run", live && rpm > 300);
+  van.classList.toggle("drive", live && spd > 2);
+  ["happy","sad","sleep"].forEach(c => van.classList.toggle(c, mood === c));
+  $("mouth").setAttribute("d", MOUTH[mood]);
+  $("brows").setAttribute("d", BROWS[mood]);
+  $("lids").setAttribute("d", mood === "sleep" ? "M230 62 Q240 50 250 62 Z M253 64 Q262 53 271 64 Z" : "");
+  const look = spd > 2 ? 2 : (mood === "sad" ? -1 : 0);
+  document.querySelectorAll("#van .pupil").forEach(p => p.style.transform = `translate(${look}px, ${mood === "sad" ? 2 : 0}px)`);
+  if (text !== lastMood) { $("mood").textContent = text; lastMood = text; }
+}
+setInterval(updateVan, 700);
+
 function renderFuel(){
   const card = $("fuelCard");
   if (fuel.l === null) { $("fuelL").innerHTML = '--<small> л</small>'; $("fuelPct").textContent = "—"; $("fuelSrc").textContent = fuel.src || "нет данных"; card.classList.remove("low"); return; }
@@ -330,7 +438,7 @@ function lowFuelAlert(){
   $("lowBanner").style.display = "block";
   beep();
   try { navigator.vibrate && navigator.vibrate([400,150,400,150,400]); } catch(e){}
-  if (S.voice === "1") speak(`Дмитрий, мало топлива. Осталось ${Math.round(fuel.l)} литров`);
+  if (S.voice === "1") speak(`Дмитрий, мало топлива. Осталось ${Math.round(fuel.l)} литров`, false);
 }
 $("lowOk").onclick = () => { lowAcked = true; lastAlert = Date.now(); $("lowBanner").style.display = "none"; };
 let actx = null;
@@ -682,25 +790,106 @@ function loadVoices(){
 try { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; } catch(e){}
 $("setVoiceName").onchange = e => { S.voiceName = e.target.value; saveS(); };
 $("btnTestVoice").onclick = () => speak("Привет, Дмитрий! Я твоя помощница в Транспортере.");
-function speak(text){
+function speak(text, showOrb = true){
   return new Promise(res => {
+    let done = false;
+    const fin = () => { if (done) return; done = true; orb.speaking = false; if (showOrb) orbSoftHide(); res(); };
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text); u.lang = "ru-RU";
       const v = voices.find(x => x.voiceURI === S.voiceName); if (v) u.voice = v;
-      u.onend = u.onerror = () => res(); speechSynthesis.speak(u);
-      setTimeout(res, 30000);
-    } catch(e) { res(); }
+      if (showOrb) { orbShow("speak", text); }
+      orb.speaking = true; orb.energy = 1;
+      u.onboundary = () => { orb.energy = 1; };
+      u.onend = u.onerror = fin; speechSynthesis.speak(u);
+      setTimeout(fin, Math.max(4000, text.length * 120));
+    } catch(e) { fin(); }
   });
 }
 
+/* ---------------- Voice orb ---------------- */
+const orb = {state:"off", energy:0, lvl:0, t:0, rot:0, parts:[], raf:null, speaking:false, hideT:null};
+const ORB_LABEL = {listen:"Слушаю", think:"Думаю", speak:"Говорю"};
+function orbShow(state, text){
+  clearTimeout(orb.hideT);
+  orb.state = state; $("orb").style.display = "flex";
+  $("orbState").textContent = ORB_LABEL[state] || "";
+  if (text != null) $("orbText").textContent = text;
+  if (!orb.raf) { orb.last = performance.now(); orb.raf = requestAnimationFrame(orbLoop); }
+}
+function orbHide(){ clearTimeout(orb.hideT); orb.state = "off"; $("orb").style.display = "none"; if (orb.raf) cancelAnimationFrame(orb.raf); orb.raf = null; orb.parts = []; }
+function orbSoftHide(){ clearTimeout(orb.hideT); orb.hideT = setTimeout(() => { if (!aiBusy && !orb.speaking) orbHide(); }, 700); }
+$("orb").onclick = () => { try { speechSynthesis.cancel(); } catch(e){} try { curRec && curRec.abort(); } catch(e){} orb.speaking = false; orbHide(); };
+function hexPath(c, x, y, r){ c.beginPath(); for (let k = 0; k < 6; k++) { const a = Math.PI/3*k + Math.PI/6; c.lineTo(x + r*Math.cos(a), y + r*Math.sin(a)); } c.closePath(); }
+function orbLoop(now){
+  const dt = Math.min(0.05, (now - orb.last) / 1000 || 0.016); orb.last = now; orb.t += dt;
+  const cv = $("orbCv"), dpr = Math.min(2, devicePixelRatio || 1), W = innerWidth, H = innerHeight;
+  if (cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)) { cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); }
+  const c = cv.getContext("2d"); c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,W,H);
+  const t = orb.t, cx = W/2, cy = H*0.40, R = Math.min(W, H*0.8) * 0.27;
+  // target level by state
+  let target, hue = 188, spin = 0.15;
+  if (orb.state === "speak" && orb.speaking) {
+    orb.energy *= Math.pow(0.08, dt);                         // затухание
+    if (Math.random() < dt * 9) orb.energy = Math.max(orb.energy, 0.45 + Math.random()*0.55);   // «слоги»
+    target = 0.25 + orb.energy * 0.85;
+  } else if (orb.state === "listen") { target = 0.18 + 0.08*Math.sin(t*3); hue = 172; spin = 0.08; }
+  else if (orb.state === "think") { target = 0.22 + 0.06*Math.sin(t*6); hue = 205; spin = 0.9; }
+  else target = 0.12;
+  orb.lvl += (target - orb.lvl) * Math.min(1, dt * 14);
+  orb.rot += dt * spin;
+  const L = orb.lvl, col = (a, l = 60) => `hsla(${hue},100%,${l}%,${a})`;
+  c.globalCompositeOperation = "lighter";
+  // outer haze
+  let g = c.createRadialGradient(cx, cy, R*0.8, cx, cy, R*(1.6 + L));
+  g.addColorStop(0, col(0.35 + L*0.3)); g.addColorStop(1, col(0));
+  c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R*(1.6 + L), 0, Math.PI*2); c.fill();
+  // rays
+  const N = 150;
+  for (let i = 0; i < N; i++) {
+    const a = i / N * Math.PI*2 + orb.rot;
+    const n = 0.5 + 0.5 * Math.sin(i*1.73 + t*7) * Math.cos(i*0.41 - t*4.3) + 0.25*Math.sin(i*5.1 + t*11);
+    const len = R * (0.06 + L * 0.75 * Math.max(0.05, n));
+    const r0 = R*0.97, r1 = R + len;
+    const x0 = cx + Math.cos(a)*r0, y0 = cy + Math.sin(a)*r0, x1 = cx + Math.cos(a)*r1, y1 = cy + Math.sin(a)*r1;
+    const lg = c.createLinearGradient(x0, y0, x1, y1); lg.addColorStop(0, col(0.95, 75)); lg.addColorStop(1, col(0));
+    c.strokeStyle = lg; c.lineWidth = 1.5 + 2.5*n*L; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+  }
+  // particles: hexagons and little rings
+  const spawn = dt * (6 + L * 70);
+  for (let k = 0; k < spawn; k++) if (orb.parts.length < 220)
+    orb.parts.push({a: Math.random()*Math.PI*2, d: R*(1 + Math.random()*0.15), v: R*(0.15 + Math.random()*0.6)*(0.4 + L*1.6), s: 3 + Math.random()*9, ring: Math.random() < 0.4, life: 0});
+  orb.parts = orb.parts.filter(p => p.d < R*2.4);
+  for (const p of orb.parts) {
+    p.d += p.v * dt; p.life += dt;
+    const f = 1 - (p.d - R) / (R*1.4), x = cx + Math.cos(p.a + orb.rot*0.3)*p.d, y = cy + Math.sin(p.a + orb.rot*0.3)*p.d;
+    const al = Math.max(0, Math.min(1, f)) * Math.min(1, p.life*4) * 0.8;
+    if (p.ring) { c.strokeStyle = `rgba(230,250,255,${al})`; c.lineWidth = 1.5; c.beginPath(); c.arc(x, y, p.s*0.45, 0, Math.PI*2); c.stroke(); }
+    else { c.fillStyle = col(al*0.7, 55 + 25*Math.random()); hexPath(c, x, y, p.s); c.fill(); }
+  }
+  // glowing rim
+  c.lineWidth = 6 + L*10; c.strokeStyle = col(0.9, 70); c.shadowColor = col(1, 60); c.shadowBlur = 30 + L*40;
+  c.beginPath();
+  for (let i = 0; i <= 120; i++) {
+    const a = i/120*Math.PI*2, w = 1 + 0.025*L*Math.sin(a*9 + t*8) + 0.015*L*Math.sin(a*23 - t*13);
+    const x = cx + Math.cos(a)*R*w, y = cy + Math.sin(a)*R*w; i ? c.lineTo(x, y) : c.moveTo(x, y);
+  }
+  c.stroke(); c.shadowBlur = 0;
+  // black core
+  c.globalCompositeOperation = "source-over";
+  c.fillStyle = "#000"; c.beginPath(); c.arc(cx, cy, R*0.94, 0, Math.PI*2); c.fill();
+  g = c.createRadialGradient(cx, cy, R*0.6, cx, cy, R*0.95); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, col(0.25 + L*0.25));
+  c.fillStyle = g; c.beginPath(); c.arc(cx, cy, R*0.95, 0, Math.PI*2); c.fill();
+  orb.raf = requestAnimationFrame(orbLoop);
+}
+
 /* ---------------- Claude ---------------- */
-let lastDtc = null, aiHistory = [], aiBusy = false;
+let lastDtc = null, aiHistory = [], aiBusy = false, curRec = null;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 function listen(){
   return new Promise((res, rej) => {
     if (!SR) { rej(new Error("распознавание речи недоступно в этом браузере")); return; }
-    const r = new SR(); r.lang = "ru-RU"; r.interimResults = false; r.maxAlternatives = 1;
+    const r = new SR(); curRec = r; r.lang = "ru-RU"; r.interimResults = false; r.maxAlternatives = 1;
     let got = null;
     r.onresult = e => { got = e.results[0][0].transcript; };
     r.onerror = e => { if (e.error !== "no-speech" && e.error !== "aborted") rej(new Error(e.error)); };
@@ -811,12 +1000,15 @@ async function converse(prefill){
   try {
     speechSynthesis.cancel();
     btn.className = "listening"; showAi("", "Слушаю…"); $("navBtn").style.display = "none";
+    orbShow("listen", "");
     const q = await listen();
+    if (orb.state === "off") return;                     // закрыли кругом
     if (!q) { showAi("", "Не расслышала. Нажми и скажи ещё раз."); return; }
+    $("orbText").textContent = "«" + q + "»";
     const loc = await localCommand(q, !!prefill);
     if (loc) { showAi(q, loc.say); await speak(loc.say); if (loc.nav) openNav(loc.nav); return; }
     if (!aiReady()) { const m = "Не поняла команду. Скажи «помощь», чтобы узнать, что я умею."; showAi(q, m); await speak(m); return; }
-    btn.className = "thinking"; showAi(q, "Думаю…");
+    btn.className = "thinking"; showAi(q, "Думаю…"); orbShow("think");
     const ctx = prefill ? prefill + " Ответ Дмитрия: " + q : q;
     let a = await askAI(ctx);
     const m = a.match(/\[NAV:\s*([^\]]+)\]/i);
@@ -825,7 +1017,7 @@ async function converse(prefill){
     await speak(a);
     if (m) openNav(m[1].trim());
   } catch(e) { showAi("", "Ошибка: " + (e.message || e)); log("claude: " + e); }
-  finally { btn.className = ""; aiBusy = false; }
+  finally { btn.className = ""; aiBusy = false; orbSoftHide(); }
 }
 $("askBtn").onclick = () => converse();
 $("btnTestAi").onclick = async () => {
