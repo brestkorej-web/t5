@@ -21,7 +21,9 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import android.view.KeyEvent
 import android.view.WindowManager
+import android.media.AudioManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -337,6 +339,45 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         @JavascriptInterface fun getAutostart(): Boolean = prefs.getBoolean("autostart", true)
         @JavascriptInterface fun setAutostart(on: Boolean) { prefs.edit().putBoolean("autostart", on).apply() }
+        // ---------- приложения и музыка ----------
+        @JavascriptInterface fun apps(): String {
+            val arr = JSONArray()
+            try {
+                val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                @Suppress("DEPRECATION")
+                packageManager.queryIntentActivities(i, 0)
+                    .map { it.loadLabel(packageManager).toString() to it.activityInfo.packageName }
+                    .distinctBy { it.second }
+                    .sortedBy { it.first.lowercase() }
+                    .forEach { (n, p) -> if (p != packageName) arr.put(JSONObject().put("name", n).put("pkg", p)) }
+            } catch (e: Exception) { Log.e(TAG, "apps", e) }
+            return arr.toString()
+        }
+        @JavascriptInterface fun launch(pkg: String): Boolean {
+            val i = packageManager.getLaunchIntentForPackage(pkg) ?: return false
+            main.post { try { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Log.e(TAG, "launch", e) } }
+            return true
+        }
+        @JavascriptInterface fun media(action: String) {
+            val code = when (action) {
+                "play" -> KeyEvent.KEYCODE_MEDIA_PLAY
+                "pause" -> KeyEvent.KEYCODE_MEDIA_PAUSE
+                "next" -> KeyEvent.KEYCODE_MEDIA_NEXT
+                "prev" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                else -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+            }
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+            am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+        }
+        @JavascriptInterface fun musicActive(): Boolean = (getSystemService(Context.AUDIO_SERVICE) as AudioManager).isMusicActive
+        @JavascriptInterface fun volume(dir: Int) {
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.adjustStreamVolume(AudioManager.STREAM_MUSIC, if (dir > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+        }
+        // пауза Vosk, пока играет «живой» голос Gemini
+        @JavascriptInterface fun audioBusy(on: Boolean) { main.post { if (on) pauseWake() else scheduleWakeResume() } }
+
         @JavascriptInterface fun version(): String =
             try { packageManager.getPackageInfo(packageName, 0).versionName ?: "" } catch (_: Exception) { "" }
     }

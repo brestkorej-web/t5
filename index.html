@@ -105,13 +105,40 @@
   #orbState{position:relative;font-size:15px;font-weight:900;letter-spacing:.2em;color:#5ff0ff;text-transform:uppercase;margin-bottom:10px}
   #orbText{position:relative;font-size:21px;line-height:1.4;text-align:center;color:#e9fdff;max-width:560px;min-height:60px;text-shadow:0 0 12px rgba(41,230,255,.5)}
   #orbHint{position:relative;font-size:13px;color:#4c7c86;margin-top:16px}
+  /* ---- Магнитола: горизонтальный экран (1024×600, 1280×720 и т.п.) ---- */
+  @media (orientation: landscape) and (min-width: 820px){
+    body{padding:10px 14px 70px}
+    #tab-dash.act{display:grid;grid-template-columns:minmax(330px,0.9fr) 1.3fr;gap:12px;align-items:start}
+    #tab-dash > *{margin-bottom:0}
+    #hero{grid-column:1;grid-row:1}
+    #fuelCard{grid-column:1;grid-row:2 / span 2;align-self:start}
+    #connCard{grid-column:2;grid-row:1}
+    #aiCard{grid-column:2;grid-row:2}
+    #gauges{grid-column:2;grid-row:3;grid-template-columns:repeat(4,1fr);padding-right:96px}
+    #aiCard:not([style*="block"]) + #gauges{grid-row:2}
+    #van{max-width:330px}
+    #mood{font-size:18px}
+    #fuelL{font-size:clamp(64px,15vh,120px)}
+    #fuelCard{padding:10px 16px 14px}
+    .g .v{font-size:24px}
+    .tab:not(#tab-dash).act{max-width:900px;margin:0 auto}
+    nav button{padding:10px 4px;font-size:16px}
+    #askBtn{width:84px;height:84px;bottom:76px;right:20px}
+  }
+  @media (orientation: landscape) and (min-width: 820px) and (max-height: 640px){
+    #hero{padding:4px 10px 8px} #van{max-width:270px} #mood{font-size:16px;min-height:22px}
+    #fuelCard .lbl{font-size:14px} #fuelPct{font-size:17px} .bar{height:18px;margin-top:8px}
+    .g{padding:8px 10px} .g .v{font-size:21px} .g .n{font-size:12px}
+    .card{padding:12px;border-radius:20px}
+  }
   #modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:30;align-items:center;justify-content:center;padding:20px}
   #modal .card{max-width:420px;width:100%}
 </style>
 </head>
 <body>
 
-<div id="lowBanner"><b>МАЛО ТОПЛИВА!</b><span id="lowText">Дмитрий, пора на заправку</span><br><button id="lowOk">Понял</button></div>
+<div id="lowBanner"><b>МАЛО ТОПЛИВА!</b><span id="lowText">Дмитрий, пора на заправку</span><br>
+  <button id="lowFind" style="background:#fff;color:#c0262f">⛽ Найти заправку</button> <button id="lowOk">Понял</button></div>
 
 
 <div id="envWarn" class="warnbox"></div>
@@ -189,7 +216,7 @@
     <div class="bar"><div id="fuelBar"></div></div>
     <div id="fuelSrc">нет данных</div>
   </div>
-<div class="card">
+<div class="card" id="connCard">
     <div class="row" style="justify-content:space-between">
       <div class="status"><span id="dot" class="dot"></span><span id="status">Не подключено</span></div>
     </div>
@@ -231,6 +258,38 @@
   <div class="card" id="dtcList"><div class="note">Ошибки ещё не читались.</div></div>
 </section>
 
+<!-- CODING -->
+<section id="tab-code" class="tab">
+  <div class="card">
+    <div style="font-size:20px;font-weight:800;margin-bottom:6px">Блоки и кодирование VW</div>
+    <div class="note">Чтение данных и текущего кодирования блока с резервной копией. Запись кодирования включится после того, как чтение проверим на твоей машине.</div>
+    <label>Блок</label>
+    <select id="codeModule">
+      <option value="01">01 Двигатель</option>
+      <option value="03">03 ABS</option>
+      <option value="08">08 Климат / отопитель</option>
+      <option value="09">09 Центральная электроника</option>
+      <option value="15">15 Подушки безопасности</option>
+      <option value="16">16 Рулевая колонка</option>
+      <option value="17">17 Приборная панель</option>
+      <option value="19">19 Шлюз CAN</option>
+      <option value="25">25 Иммобилайзер</option>
+      <option value="46">46 Комфорт</option>
+      <option value="56">56 Магнитола</option>
+    </select>
+    <button id="btnReadCode" class="primary" style="margin-top:12px;width:100%">Прочитать данные и кодирование</button>
+  </div>
+  <div class="card" id="codeOut"><div class="note">Блок ещё не читался.</div></div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between"><b>Резервные копии</b><button id="btnCopyBk">Копировать все</button></div>
+    <div id="bkList" class="note" style="margin-top:8px"></div>
+  </div>
+  <div class="card" style="opacity:.6">
+    <b>🔒 Запись кодирования</b>
+    <div class="note" style="margin-top:6px">Пока закрыто. Откроется для приборки и центральной электроники после проверки чтения: перед каждой записью — резервная копия, подтверждение и кнопка «вернуть как было». Двигатель, ABS, подушки и иммобилайзер записывать не будем.</div>
+  </div>
+</section>
+
 <!-- SETTINGS -->
 <section id="tab-set" class="tab">
   <div class="card">
@@ -245,8 +304,23 @@
       <option value="obd">Только стандартный OBD (PID 2F)</option>
       <option value="cluster">Только приборка VW (блок 17, группа 002)</option>
     </select>
-    <label>Голос</label>
-    <div class="row"><select id="setVoiceName" style="flex:1"></select><button id="btnTestVoice">▶</button></div>
+    <label>Голос помощницы</label>
+    <select id="setTtsEngine">
+      <option value="gemini">Живой голос (Gemini, нужен интернет и ключ)</option>
+      <option value="system">Системный синтезатор</option>
+    </select>
+    <div id="gemVoiceBox" class="row" style="margin-top:8px">
+      <select id="setGemVoice" style="flex:1">
+        <option value="Kore">Kore — спокойный женский</option>
+        <option value="Aoede">Aoede — лёгкий женский</option>
+        <option value="Leda">Leda — молодой женский</option>
+        <option value="Zephyr">Zephyr — яркий женский</option>
+        <option value="Callirrhoe">Callirrhoe — мягкий женский</option>
+      </select>
+    </div>
+    <div id="sysVoiceBox" class="row" style="margin-top:8px"><select id="setVoiceName" style="flex:1"></select></div>
+    <button id="btnTestVoice" style="margin-top:8px;width:100%">▶ Послушать голос</button>
+    <div class="note" id="ttsNote" style="margin-top:6px">Живой голос использует ключ Gemini из раздела «ИИ-помощник». Без интернета автоматически включится системный.</div>
     <label>Приветствие при подключении</label>
     <select id="setGreet"><option value="1">Включено</option><option value="0">Выключено</option></select>
     <label>Голосовое предупреждение</label>
@@ -261,6 +335,8 @@
     <select id="setAuto"><option value="1">Включено</option><option value="0">Выключено</option></select>
     <button id="btnOverlay" style="margin-top:12px;width:100%">Разрешить показ поверх других приложений</button>
     <div class="note" style="margin-top:6px">Нужно, чтобы бусик сам выходил на экран при включении и по «Привет, бусик», даже поверх навигатора.</div>
+    <label>Музыкальное приложение</label>
+    <select id="setMusic"><option value="">Любое (что играло последним)</option></select>
     <label>Сканер</label>
     <button id="btnPickDev" style="width:100%">Выбрать другой сканер</button>
     <div class="note" id="appVer" style="margin-top:10px"></div>
@@ -312,6 +388,7 @@
 <nav>
   <button data-tab="dash" class="act">Приборы</button>
   <button data-tab="dtc">Ошибки</button>
+  <button data-tab="code">Блоки</button>
   <button data-tab="set">Настройки</button>
 </nav>
 
@@ -328,7 +405,7 @@
 "use strict";
 const NATIVE = !!(window.Android && window.Android.isNative);
 /* ---------------- Settings ---------------- */
-const DEF = {tank:80, low:12, fuelSrc:"auto", voice:"1", voiceName:"", greet:"1", key:"", model:"claude-haiku-5-5", provider:"none", gemKey:"", gemModel:"gemini-3.8-flash"};
+const DEF = {tank:80, low:12, fuelSrc:"auto", voice:"1", voiceName:"", greet:"1", key:"", model:"claude-haiku-5-5", provider:"none", gemKey:"", gemModel:"gemini-3.8-flash", ttsEngine:"gemini", gemVoice:"Kore", musicPkg:""};
 let S = Object.assign({}, DEF);
 try { Object.assign(S, JSON.parse(localStorage.getItem("t5set") || "{}")); } catch(e) {}
 if (S.gemModel === "gemini-flash-latest") S.gemModel = "gemini-3.8-flash";
@@ -482,7 +559,22 @@ function lowFuelAlert(){
   $("lowBanner").style.display = "block";
   beep();
   try { navigator.vibrate && navigator.vibrate([400,150,400,150,400]); } catch(e){}
-  if (S.voice === "1") speak(`Дмитрий, мало топлива. Осталось ${Math.round(fuel.l)} литров`, false);
+  if (S.voice === "1") offerStation();
+}
+$("lowFind").onclick = () => { lowAcked = true; lastAlert = Date.now(); $("lowBanner").style.display = "none"; openNav("АЗС"); };
+async function offerStation(){
+  if (aiBusy) return;
+  aiBusy = true;
+  try {
+    await speak(`Дмитрий, мало топлива, осталось около ${Math.round(fuel.l)} литров. Найти ближайшую заправку?`);
+    if (!canListen || demo) return;
+    orbShow("listen", "Найти заправку? Скажи «да» или «нет»");
+    let a = null; try { a = await listen(); } catch(e) {}
+    if (a && /\b(да|давай|найди|ага|конечно|угу|поехали|хочу)/i.test(a)) {
+      lowAcked = true; lastAlert = Date.now(); $("lowBanner").style.display = "none";
+      await speak("Ищу заправки рядом."); openNav("АЗС");
+    } else if (a) await speak("Хорошо, напомню позже.");
+  } finally { aiBusy = false; orbSoftHide(); }
 }
 $("lowOk").onclick = () => { lowAcked = true; lastAlert = Date.now(); $("lowBanner").style.display = "none"; };
 let actx = null;
@@ -874,8 +966,80 @@ function loadVoices(){
 window.onNativeVoices = loadVoices;
 try { loadVoices(); if (!NATIVE) speechSynthesis.onvoiceschanged = loadVoices; } catch(e){}
 $("setVoiceName").onchange = e => { S.voiceName = e.target.value; saveS(); };
-$("btnTestVoice").onclick = () => speak("Привет, Дмитрий! Я твоя помощница в Транспортере.");
-function speak(text, showOrb = true){
+function ttsUi(){ $("gemVoiceBox").style.display = S.ttsEngine === "gemini" ? "flex" : "none"; $("sysVoiceBox").style.display = S.ttsEngine === "gemini" ? "none" : "flex"; }
+$("setTtsEngine").value = S.ttsEngine; $("setGemVoice").value = S.gemVoice; ttsUi();
+$("setTtsEngine").onchange = e => { S.ttsEngine = e.target.value; saveS(); ttsUi(); };
+$("setGemVoice").onchange = e => { S.gemVoice = e.target.value; saveS(); };
+$("btnTestVoice").onclick = () => {
+  if (S.ttsEngine === "gemini" && !S.gemKey) { $("ttsNote").textContent = "Для живого голоса вставь ключ Gemini в разделе «ИИ-помощник» ниже."; }
+  speak("Привет, Дмитрий! Я твоя помощница. Куда поедем сегодня?");
+};
+/* ---------------- Живой голос (Gemini TTS) ---------------- */
+const TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.8-flash-tts-preview", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"];
+let ttsModelOk = null, ttsSrc = null, ttsAnalyser = null;
+async function geminiTtsAudio(text){
+  const body = JSON.stringify({
+    contents: [{parts: [{text: "Скажи по-русски тёплым, живым, дружелюбным голосом, естественно, как живой человек: " + text}]}],
+    generationConfig: {responseModalities: ["AUDIO"], speechConfig: {voiceConfig: {prebuiltVoiceConfig: {voiceName: S.gemVoice || "Kore"}}}}
+  });
+  const models = ttsModelOk ? [ttsModelOk] : TTS_MODELS;
+  let lastErr = "нет ответа";
+  for (const m of models) {
+    const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 12000);
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`,
+        {method: "POST", headers: {"content-type": "application/json", "x-goog-api-key": S.gemKey}, body, signal: ctl.signal});
+      clearTimeout(to);
+      if (!r.ok) { lastErr = m + ": HTTP " + r.status; log("tts " + lastErr); continue; }
+      const j = await r.json();
+      const part = ((j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || []).find(p => p.inlineData);
+      if (!part) { lastErr = m + ": нет аудио"; continue; }
+      ttsModelOk = m;
+      const rate = parseInt(((part.inlineData.mimeType || "").match(/rate=(\d+)/) || [])[1]) || 24000;
+      return {b64: part.inlineData.data, rate};
+    } catch(e) { clearTimeout(to); lastErr = m + ": " + (e.name === "AbortError" ? "таймаут" : e.message); }
+  }
+  throw new Error(lastErr);
+}
+function playPcm(b64, rate, onEnd){
+  unlockAudio();
+  const bin = atob(b64), n = bin.length >> 1, f = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2*i) | (bin.charCodeAt(2*i+1) << 8); if (v & 0x8000) v -= 0x10000; f[i] = v / 32768; }
+  const buf = actx.createBuffer(1, n, rate); buf.copyToChannel(f, 0);
+  const src = actx.createBufferSource(); src.buffer = buf;
+  ttsAnalyser = actx.createAnalyser(); ttsAnalyser.fftSize = 512;
+  src.connect(ttsAnalyser); ttsAnalyser.connect(actx.destination);
+  src.onended = () => { ttsSrc = null; ttsAnalyser = null; onEnd(); };
+  ttsSrc = src; src.start();
+}
+function stopAllSpeech(){
+  try { if (ttsSrc) { ttsSrc.onended = null; ttsSrc.stop(); ttsSrc = null; ttsAnalyser = null; } } catch(e){}
+  if (NATIVE) { try { Android.stopSpeak(); Android.audioBusy(false); } catch(e){} } else { try { speechSynthesis.cancel(); } catch(e){} }
+}
+// громкость живого голоса → энергия круга (настоящий ритм речи)
+const _anaBuf = new Uint8Array(512);
+function analyserLevel(){
+  if (!ttsAnalyser) return null;
+  ttsAnalyser.getByteTimeDomainData(_anaBuf);
+  let sum = 0; for (let i = 0; i < _anaBuf.length; i++) { const v = (_anaBuf[i] - 128) / 128; sum += v*v; }
+  return Math.min(1, Math.sqrt(sum / _anaBuf.length) * 4.5);
+}
+async function speak(text, showOrb = true){
+  if (S.ttsEngine === "gemini" && S.gemKey && navigator.onLine !== false) {
+    try {
+      if (showOrb) { orbShow("think", text); }
+      const a = await geminiTtsAudio(text);
+      return await new Promise(res => {
+        if (NATIVE) try { Android.audioBusy(true); } catch(e){}
+        if (showOrb) orbShow("speak", text);
+        orb.speaking = true; orb.live = true;
+        playPcm(a.b64, a.rate, () => { orb.speaking = false; orb.live = false; if (NATIVE) try { Android.audioBusy(false); } catch(e){} if (showOrb) orbSoftHide(); res(); });
+      });
+    } catch(e) { log("живой голос недоступен: " + (e.message || e) + " — системный"); orb.live = false; }
+  }
+  return speakSystem(text, showOrb);
+}
+function speakSystem(text, showOrb = true){
   return new Promise(res => {
     let done = false;
     const fin = () => { if (done) return; done = true; orb.speaking = false; if (showOrb) orbSoftHide(); res(); };
@@ -913,7 +1077,7 @@ function orbShow(state, text){
 }
 function orbHide(){ clearTimeout(orb.hideT); orb.state = "off"; $("orb").style.display = "none"; if (orb.raf) cancelAnimationFrame(orb.raf); orb.raf = null; orb.parts = []; }
 function orbSoftHide(){ clearTimeout(orb.hideT); orb.hideT = setTimeout(() => { if (!aiBusy && !orb.speaking) orbHide(); }, 700); }
-$("orb").onclick = () => { if (NATIVE) { try { Android.stopSpeak(); Android.stopListen(); } catch(e){} } try { speechSynthesis.cancel(); } catch(e){} try { curRec && curRec.abort(); } catch(e){} orb.speaking = false; orbHide(); };
+$("orb").onclick = () => { stopAllSpeech(); if (NATIVE) { try { Android.stopListen(); } catch(e){} } try { curRec && curRec.abort(); } catch(e){} orb.speaking = false; orbHide(); };
 function hexPath(c, x, y, r){ c.beginPath(); for (let k = 0; k < 6; k++) { const a = Math.PI/3*k + Math.PI/6; c.lineTo(x + r*Math.cos(a), y + r*Math.sin(a)); } c.closePath(); }
 function orbLoop(now){
   const dt = Math.min(0.05, (now - orb.last) / 1000 || 0.016); orb.last = now; orb.t += dt;
@@ -923,7 +1087,11 @@ function orbLoop(now){
   const t = orb.t, cx = W/2, cy = H*0.40, R = Math.min(W, H*0.8) * 0.27;
   // target level by state
   let target, hue = 188, spin = 0.15;
-  if (orb.state === "speak" && orb.speaking) {
+  const live = orb.live ? analyserLevel() : null;
+  if (orb.state === "speak" && orb.speaking && live != null) {
+    orb.energy = Math.max(live, orb.energy * Math.pow(0.02, dt));
+    target = 0.18 + orb.energy * 0.95;
+  } else if (orb.state === "speak" && orb.speaking) {
     orb.energy *= Math.pow(0.08, dt);                         // затухание
     if (Math.random() < dt * 9) orb.energy = Math.max(orb.energy, 0.45 + Math.random()*0.55);   // «слоги»
     target = 0.25 + orb.energy * 0.85;
@@ -1073,9 +1241,19 @@ function gv(pid){ const d = gEls[pid]; return d && !d.classList.contains("na") ?
 const NAV_RE = /(?:поехали|поедем|едем|езжай|маршрут|проложи(?:\s+маршрут)?|навигатор|отвези|вези)\s*(?:до|на|в|во|к|ко)?\s+(.+)/i;
 async function localCommand(q, afterGreet){
   const t = q.toLowerCase();
+  if (/заправк|азс/.test(t) && /найд|где|ближайш|рядом|поехали|едем|маршрут/.test(t)) return {say: "Ищу заправки рядом.", nav: "АЗС"};
+  // музыка
+  if (/(включи|поставь|запусти|играй|вруби).*(музык|песн|трек|плеер)|^музык/.test(t)) return musicCmd("play");
+  if (/(пауза|стоп|выключи|останови|заглуши).*(музык|песн|трек)?$/.test(t) && /музык|песн|трек|пауза/.test(t)) return musicCmd("pause");
+  if (/(следующ|дальше|переключи|другую|другой трек|скип)/.test(t)) return musicCmd("next");
+  if (/(предыдущ|назад|верни трек|прошл)/.test(t) && /трек|песн|предыдущ/.test(t)) return musicCmd("prev");
+  if (/громче|прибавь/.test(t)) return volCmd(1);
+  if (/тише|убавь/.test(t)) return volCmd(-1);
+  const op = t.match(/(?:открой|запусти|включи|покажи)\s+(?:приложение\s+)?(.+)/);
+  if (op && NATIVE) { const r = openApp(op[1]); if (r) return r; }
   const nav = q.match(NAV_RE);
   if (nav) return {say: "Открываю навигатор: " + nav[1], nav: nav[1]};
-  if (/помощь|что ты умеешь|команды/.test(t)) return {say: "Я умею говорить уровень топлива и запас хода, температуру, наддув, напряжение, читать ошибки двигателя и открывать навигатор. Скажи, например: поехали на Ленина десять."};
+  if (/помощь|что ты умеешь|команды/.test(t)) return {say: "Я говорю уровень топлива и запас хода, температуру, наддув и напряжение, читаю ошибки, ищу заправки, открываю навигатор и любые приложения, включаю и переключаю музыку, делаю громче и тише. Скажи, например: поехали на Ленина десять, или включи музыку."};
   if (/хватит|проед|запас/.test(t)) return {say: fuel.l == null ? "Уровень топлива пока не прочитан." : `Топлива ${Math.round(fuel.l)} литров, при расходе около девяти литров хватит примерно на ${Math.round(fuel.l / 9 * 100)} километров.`};
   if (/топлив|бензин|солярк|дизел|бак|заправ/.test(t)) return {say: fuel.l == null ? "Уровень топлива пока не прочитан." : `Топлива ${Math.round(fuel.l)} литров, это ${Math.round(fuel.pct)} процентов бака.` + (fuel.l <= S.low ? " Пора на заправку." : "")};
   if (/температур|прогре|горяч|холодн/.test(t)) { const c = gv("05"); return {say: c == null ? "Температура двигателя пока не прочитана." : `Температура двигателя ${c} градусов.` + (num(c) < 60 ? " Двигатель ещё не прогрет." : num(c) > 105 ? " Это много, следи за перегревом." : " Всё в норме.")}; }
@@ -1094,12 +1272,44 @@ async function localCommand(q, afterGreet){
   }
   return null;
 }
+function musicCmd(act){
+  if (!NATIVE) return {say: "Музыкой я управляю только в приложении на магнитоле."};
+  if (act === "play") {
+    let started = false;
+    if (!Android.musicActive()) {
+      if (S.musicPkg) { Android.launch(S.musicPkg); started = true; setTimeout(() => Android.media("play"), 3500); }
+      else Android.media("play");
+    }
+    return {say: started ? "Включаю музыку." : "Включаю.", after: () => {}};
+  }
+  Android.media(act);
+  return {say: act === "pause" ? "Пауза." : act === "next" ? "Следующий трек." : "Предыдущий трек.", quiet: act !== "pause"};
+}
+function volCmd(d){
+  if (!NATIVE) return {say: "Громкостью я управляю только в приложении на магнитоле."};
+  for (let i = 0; i < 2; i++) Android.volume(d);
+  return {say: d > 0 ? "Громче." : "Тише.", quiet: true};
+}
+let appsCache = null;
+function appList(){ if (!appsCache) { try { appsCache = JSON.parse(Android.apps()); } catch(e) { appsCache = []; } } return appsCache; }
+const APP_ALIASES = {"навигатор":"навигатор","яндекс навигатор":"навигатор","карты":"карты","телеграм":"telegram","телеграмм":"telegram","ватсап":"whatsapp","вотсап":"whatsapp","вайбер":"viber","ютуб":"youtube","музыку":"музык","музыка":"музык","вк":"vk","вконтакте":"vk","настройки":"настройки","браузер":"chrome","хром":"chrome","плеер":"плеер","радио":"радио","камеру":"камера","звонилку":"телефон","телефон":"телефон"};
+function openApp(name){
+  name = name.replace(/[.!?]+$/, "").trim();
+  const key = (APP_ALIASES[name] || name).toLowerCase();
+  const list = appList();
+  const tr = x => x.toLowerCase();
+  let best = list.find(a => tr(a.name) === key) || list.find(a => tr(a.name).includes(key)) || list.find(a => tr(a.pkg).includes(key.replace(/\s+/g, "")))
+          || list.find(a => key.includes(tr(a.name)) && a.name.length > 2);
+  if (!best) return null;
+  Android.launch(best.pkg);
+  return {say: "Открываю " + best.name + "."};
+}
 function showAi(q, a){ $("aiCard").style.display = "block"; $("aiQ").textContent = q ? "«" + q + "»" : ""; $("aiA").textContent = a; }
 async function converse(prefill){
   if (aiBusy) return; aiBusy = true; unlockAudio();
   const btn = $("askBtn");
   try {
-    if (NATIVE) Android.stopSpeak(); else speechSynthesis.cancel();
+    stopAllSpeech();
     btn.className = "listening"; showAi("", "Слушаю…"); $("navBtn").style.display = "none";
     orbShow("listen", "");
     const q = await listen();
@@ -1107,7 +1317,7 @@ async function converse(prefill){
     if (!q) { showAi("", "Не расслышала. Нажми и скажи ещё раз."); return; }
     $("orbText").textContent = "«" + q + "»";
     const loc = await localCommand(q, !!prefill);
-    if (loc) { showAi(q, loc.say); await speak(loc.say); if (loc.nav) openNav(loc.nav); return; }
+    if (loc) { showAi(q, loc.say); if (!loc.quiet) await speak(loc.say); if (loc.nav) openNav(loc.nav); return; }
     if (!aiReady()) { const m = "Не поняла команду. Скажи «помощь», чтобы узнать, что я умею."; showAi(q, m); await speak(m); return; }
     btn.className = "thinking"; showAi(q, "Думаю…"); orbShow("think");
     const ctx = prefill ? prefill + " Ответ Дмитрия: " + q : q;
@@ -1138,6 +1348,47 @@ async function greet(){
   await speak(t);
   if (canListen && !demo) converse("Ты только что поздоровалась и спросила, куда едем сегодня.");
 }
+
+/* ---------------- Блоки: чтение данных и кодирования ---------------- */
+function printableRuns(bytes){
+  const out = []; let cur = "";
+  for (const b of bytes) { if (b >= 0x20 && b < 0x7f) cur += String.fromCharCode(b); else { if (cur.trim().length >= 3) out.push(cur.trim()); cur = ""; } }
+  if (cur.trim().length >= 3) out.push(cur.trim());
+  return out;
+}
+function loadBk(){ try { return JSON.parse(localStorage.getItem("t5bk") || "[]"); } catch(e) { return []; } }
+function saveBk(list){ try { localStorage.setItem("t5bk", JSON.stringify(list.slice(-50))); } catch(e){} }
+function renderBk(){
+  const list = loadBk();
+  $("bkList").innerHTML = list.length ? list.slice().reverse().map(b => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b>${b.module}</b> · ${b.time}<br><span style="word-break:break-all">${b.text.join(" | ")}</span></div>`).join("") : "Копий пока нет.";
+}
+renderBk();
+$("btnCopyBk").onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(loadBk(), null, 1)); $("btnCopyBk").textContent = "Скопировано"; } catch(e) { $("btnCopyBk").textContent = "Не вышло"; } setTimeout(() => $("btnCopyBk").textContent = "Копировать все", 1500); };
+$("btnReadCode").onclick = async () => {
+  const mod = parseInt($("codeModule").value, 16), name = $("codeModule").selectedOptions[0].text, out = $("codeOut");
+  if (!polling && !demo) { out.innerHTML = '<div class="note">Сначала подключи сканер на вкладке «Приборы».</div>'; return; }
+  out.innerHTML = '<div class="note">Читаю блок…</div>';
+  try {
+    const res = await exclusive(async () => {
+      if (demo) return {id: [0x5A,0x9B,...Array.from("7H0920860Q  ").map(c=>c.charCodeAt(0)),0x00,0x01,0x2C,0x05,...Array.from("KOMBIINSTRUMENT RB4 ").map(c=>c.charCodeAt(0))], ok: true};
+      return vwSession(mod, async () => {
+        const id = await tpReq([0x1A, 0x9B]);
+        let ext = null; try { ext = await tpReq([0x1A, 0x86]); } catch(e) {}
+        return {id, ext};
+      });
+    });
+    const id = res.id || [];
+    if (id[0] === 0x7F) throw new Error("блок отказал (код " + hx(id[2] || 0) + ")");
+    const text = printableRuns(id.slice(2));
+    const hex = hexs(id).replace(/(..)/g, "$1 ").trim();
+    const bk = {module: name, time: new Date().toLocaleString("ru-RU"), text, hex, ext: res.ext ? hexs(res.ext) : ""};
+    const list = loadBk(); list.push(bk); saveBk(list); renderBk();
+    out.innerHTML = `<div style="font-size:18px;font-weight:800">${name}</div>` +
+      (text.length ? text.map(x => `<div style="font-size:17px;margin-top:6px">${x.replace(/</g,"&lt;")}</div>`).join("") : '<div class="note">Текстовых данных нет.</div>') +
+      `<label>Сырые данные (кодирование внутри)</label><div id="log" style="max-height:none">${hex}</div>` +
+      `<div class="note" style="margin-top:8px">✓ Резервная копия сохранена. Пришли эти данные мне — расшифрую кодирование и подготовлю запись.</div>`;
+  } catch(e) { out.innerHTML = `<div class="note">Не удалось прочитать: ${e.message || e}. Пришли журнал обмена из Настроек.</div>`; }
+};
 
 /* ---------------- Demo ---------------- */
 let demoFuel = 22, demoT = 0;
@@ -1192,6 +1443,8 @@ if (NATIVE) {
   $("btnOverlay").onclick = () => Android.requestOverlay();
   $("btnPickDev").onclick = () => { polling = false; try { Android.btClose(); } catch(e){} connectNative(true); };
   $("appVer").textContent = "Версия приложения: " + Android.version();
+  appList().forEach(a => { const o = document.createElement("option"); o.value = a.pkg; o.textContent = a.name; $("setMusic").appendChild(o); });
+  $("setMusic").value = S.musicPkg; $("setMusic").onchange = e => { S.musicPkg = e.target.value; saveS(); };
   const upd = () => { $("wakeStatus").textContent = "Состояние: " + Android.wakeStatus(); $("btnOverlay").style.display = Android.hasOverlay() ? "none" : "block"; };
   upd(); setInterval(upd, 3000);
   window.onNativePermissions = () => { loadVoices(); };
