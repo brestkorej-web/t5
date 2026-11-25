@@ -698,8 +698,10 @@ async function connectNative(forcePick){
       timer = setTimeout(() => {
         nativeWait = null;
         Android.btClose();
-        rej(new Error("Bluetooth не подключился за 30 секунд"));
-      }, 30000);
+        rej(new Error("Bluetooth не подключился за 60 секунд"));
+      }, 60000);
+      polling = false;
+      nativeOn = false;
       Android.btConnect(mac);
     });
     clearTimeout(timer);

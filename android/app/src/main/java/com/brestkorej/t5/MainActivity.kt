@@ -121,7 +121,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     // ---------------- permissions ----------------
     private fun askPermissions() {
         val need = mutableListOf(Manifest.permission.RECORD_AUDIO)
-        if (Build.VERSION.SDK_INT >= 31) need += Manifest.permission.BLUETOOTH_CONNECT
+        if (Build.VERSION.SDK_INT >= 31) {
+            need += Manifest.permission.BLUETOOTH_CONNECT
+            need += Manifest.permission.BLUETOOTH_SCAN
+        }
         if (Build.VERSION.SDK_INT >= 33) need += Manifest.permission.POST_NOTIFICATIONS
         val missing = need.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 1) else startWakeIfEnabled()
@@ -260,6 +263,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun bluetoothLog(generation: Int, message: String) {
+        bluetoothEvent(generation, "window.onNativeBtLog && onNativeBtLog(${q(message)})")
+    }
+
     @SuppressLint("MissingPermission")
     private fun btConnect(mac: String) {
         val generation = stopBluetooth()
@@ -270,7 +277,12 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 val ad = adapter() ?: error("нет Bluetooth")
                 check(ad.isEnabled) { "Bluetooth выключен" }
                 val dev = ad.getRemoteDevice(mac)
-                try { ad.cancelDiscovery() } catch (_: SecurityException) {}
+                try {
+                    val cancelled = ad.cancelDiscovery()
+                    bluetoothLog(generation, if (cancelled) "Поиск Bluetooth остановлен" else "Bluetooth не подтвердил остановку поиска")
+                } catch (_: SecurityException) {
+                    bluetoothLog(generation, "Чтобы остановить поиск Bluetooth, разрешите T5 доступ к устройствам поблизости")
+                }
                 val methods = listOf<Pair<String, () -> BluetoothSocket>>(
                     "SPP" to { dev.createRfcommSocketToServiceRecord(SPP) },
                     "SPP без аутентификации" to { dev.createInsecureRfcommSocketToServiceRecord(SPP) },
@@ -288,18 +300,21 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                         }
                     } catch (e: Exception) {
                         lastError = e
-                        bluetoothEvent(generation, "window.onNativeBtLog && onNativeBtLog(${q("$label: ${e.message ?: e}")})")
+                        bluetoothLog(generation, "$label: ${e.message ?: e}")
                         continue
                     }
+                    bluetoothLog(generation, "$label: открываю соединение")
+                    val timedOut = java.util.concurrent.atomic.AtomicBoolean()
                     val timeout = Runnable {
                         synchronized(btLock) {
                             if (pendingSocket === candidate) {
+                                timedOut.set(true)
                                 pendingSocket = null
                                 closeSocket(candidate)
                             }
                         }
                     }
-                    main.postDelayed(timeout, 8000)
+                    main.postDelayed(timeout, 18000)
                     try {
                         candidate.connect()
                         synchronized(btLock) {
@@ -311,8 +326,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                         }
                         break
                     } catch (e: Exception) {
-                        lastError = e
-                        bluetoothEvent(generation, "window.onNativeBtLog && onNativeBtLog(${q("$label: ${e.message ?: e}")})")
+                        val reason = if (timedOut.get()) "тайм-аут 18 с" else e.message ?: e.toString()
+                        lastError = IllegalStateException("$label: $reason", e)
+                        bluetoothLog(generation, lastError.message.orEmpty())
                     } finally {
                         main.removeCallbacks(timeout)
                         synchronized(btLock) {
