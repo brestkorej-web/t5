@@ -107,7 +107,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     override fun onDestroy() {
         instance = null
-        try { sock?.close() } catch (_: Exception) {}
+        stopBluetooth()
         recognizer?.destroy()
         tts?.shutdown()
         super.onDestroy()
@@ -121,7 +121,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     // ---------------- permissions ----------------
     private fun askPermissions() {
         val need = mutableListOf(Manifest.permission.RECORD_AUDIO)
-        if (Build.VERSION.SDK_INT >= 31) need += Manifest.permission.BLUETOOTH_CONNECT
+        if (Build.VERSION.SDK_INT >= 31) {
+            need += Manifest.permission.BLUETOOTH_CONNECT
+            need += Manifest.permission.BLUETOOTH_SCAN
+        }
         if (Build.VERSION.SDK_INT >= 33) need += Manifest.permission.POST_NOTIFICATIONS
         val missing = need.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) requestPermissions(missing.toTypedArray(), 1) else startWakeIfEnabled()
@@ -235,44 +238,132 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private fun adapter(): BluetoothAdapter? =
         (getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
+    private val btLock = Any()
+    private var btGeneration = 0
+    private var pendingSocket: BluetoothSocket? = null
+
+    private fun closeSocket(socket: BluetoothSocket?) {
+        try { socket?.close() } catch (_: Exception) {}
+    }
+
+    private fun stopBluetooth(): Int = synchronized(btLock) {
+        btGeneration++
+        closeSocket(pendingSocket)
+        closeSocket(sock)
+        pendingSocket = null
+        sock = null
+        btGeneration
+    }
+
+    private fun bluetoothEvent(generation: Int, code: String) {
+        main.post {
+            synchronized(btLock) {
+                if (generation == btGeneration && !isFinishing) web.evaluateJavascript(code, null)
+            }
+        }
+    }
+
+    private fun bluetoothLog(generation: Int, message: String) {
+        bluetoothEvent(generation, "window.onNativeBtLog && onNativeBtLog(${q(message)})")
+    }
+
     @SuppressLint("MissingPermission")
     private fun btConnect(mac: String) {
+        val generation = stopBluetooth()
         Thread {
+            var connected = false
+            var connection: BluetoothSocket? = null
             try {
-                try { sock?.close() } catch (_: Exception) {}
-                val ad = adapter() ?: throw Exception("нет Bluetooth")
-                if (!ad.isEnabled) throw Exception("Bluetooth выключен")
+                val ad = adapter() ?: error("нет Bluetooth")
+                check(ad.isEnabled) { "Bluetooth выключен" }
                 val dev = ad.getRemoteDevice(mac)
-                try { ad.cancelDiscovery() } catch (_: Exception) {}
-                var s: BluetoothSocket
                 try {
-                    s = dev.createRfcommSocketToServiceRecord(SPP); s.connect()
-                } catch (e: Exception) {
-                    Log.w(TAG, "secure failed, trying insecure", e)
+                    val cancelled = ad.cancelDiscovery()
+                    bluetoothLog(generation, if (cancelled) "Поиск Bluetooth остановлен" else "Bluetooth не подтвердил остановку поиска")
+                } catch (_: SecurityException) {
+                    bluetoothLog(generation, "Чтобы остановить поиск Bluetooth, разрешите T5 доступ к устройствам поблизости")
+                }
+                val methods = listOf<Pair<String, () -> BluetoothSocket>>(
+                    "SPP" to { dev.createRfcommSocketToServiceRecord(SPP) },
+                    "SPP без аутентификации" to { dev.createInsecureRfcommSocketToServiceRecord(SPP) },
+                    "RFCOMM канал 1" to {
+                        val method = dev.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
+                        method.invoke(dev, 1) as BluetoothSocket
+                    }
+                )
+                var lastError: Exception? = null
+                for ((label, openSocket) in methods) {
+                    val candidate = try {
+                        synchronized(btLock) {
+                            if (generation != btGeneration) return@Thread
+                            openSocket().also { pendingSocket = it }
+                        }
+                    } catch (e: Exception) {
+                        lastError = e
+                        bluetoothLog(generation, "$label: ${e.message ?: e}")
+                        continue
+                    }
+                    bluetoothLog(generation, "$label: открываю соединение")
+                    val timedOut = java.util.concurrent.atomic.AtomicBoolean()
+                    val timeout = Runnable {
+                        synchronized(btLock) {
+                            if (pendingSocket === candidate) {
+                                timedOut.set(true)
+                                pendingSocket = null
+                                closeSocket(candidate)
+                            }
+                        }
+                    }
+                    main.postDelayed(timeout, 18000)
                     try {
-                        s = dev.createInsecureRfcommSocketToServiceRecord(SPP); s.connect()
-                    } catch (e2: Exception) {
-                        // старые клоны ELM327: канал 1 напрямую
-                        val m = dev.javaClass.getMethod("createRfcommSocket", Int::class.javaPrimitiveType)
-                        s = m.invoke(dev, 1) as BluetoothSocket; s.connect()
+                        candidate.connect()
+                        synchronized(btLock) {
+                            if (generation != btGeneration) return@Thread
+                            check(pendingSocket === candidate) { "истекло время подключения" }
+                            pendingSocket = null
+                            connection = candidate
+                            sock = candidate
+                        }
+                        break
+                    } catch (e: Exception) {
+                        val reason = if (timedOut.get()) "тайм-аут 18 с" else e.message ?: e.toString()
+                        lastError = IllegalStateException("$label: $reason", e)
+                        bluetoothLog(generation, lastError.message.orEmpty())
+                    } finally {
+                        main.removeCallbacks(timeout)
+                        synchronized(btLock) {
+                            if (pendingSocket === candidate) pendingSocket = null
+                            if (connection !== candidate) closeSocket(candidate)
+                        }
                     }
                 }
-                sock = s
-                prefs.edit().putString("mac", mac).apply()
-                js("window.onNativeState && onNativeState('connected')")
-                val inp = s.inputStream
-                val buf = ByteArray(1024)
-                while (true) {
-                    val n = inp.read(buf)
-                    if (n < 0) break
-                    if (n > 0) js("window.onNativeData && onNativeData(${q(String(buf, 0, n, Charsets.ISO_8859_1))})")
+                val active = connection ?: throw lastError ?: error("соединение не открыто")
+                synchronized(btLock) {
+                    if (generation != btGeneration) return@Thread
+                    prefs.edit().putString("mac", mac).apply()
+                    connected = true
                 }
-                js("window.onNativeState && onNativeState('disconnected')")
+                bluetoothEvent(generation, "window.onNativeState && onNativeState('connected')")
+                val input = active.inputStream
+                val buffer = ByteArray(1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    if (count > 0) {
+                        val data = String(buffer, 0, count, Charsets.ISO_8859_1)
+                        bluetoothEvent(generation, "window.onNativeData && onNativeData(${q(data)})")
+                    }
+                }
+                bluetoothEvent(generation, "window.onNativeState && onNativeState('disconnected')")
             } catch (e: Exception) {
                 Log.e(TAG, "bt", e)
-                val wasConnected = sock != null
-                sock = null
-                js("window.onNativeState && onNativeState(${q(if (wasConnected) "disconnected" else "error:" + (e.message ?: e.toString()))})")
+                val state = if (connected) "disconnected" else "error:" + (e.message ?: e.toString())
+                bluetoothEvent(generation, "window.onNativeState && onNativeState(${q(state)})")
+            } finally {
+                synchronized(btLock) {
+                    if (connection != null && sock === connection) sock = null
+                    closeSocket(connection)
+                }
             }
         }.start()
     }
@@ -297,7 +388,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             try { sock?.outputStream?.apply { write(data.toByteArray(Charsets.ISO_8859_1)); flush() } }
             catch (e: Exception) { Log.e(TAG, "write", e) }
         }
-        @JavascriptInterface fun btClose() { try { sock?.close() } catch (_: Exception) {}; sock = null }
+        @JavascriptInterface fun btClose() { stopBluetooth() }
 
         @JavascriptInterface fun voices(): String {
             val arr = JSONArray()

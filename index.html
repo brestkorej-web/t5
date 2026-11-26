@@ -660,6 +660,7 @@ async function connect(){
 /* ---------------- Native (APK) Bluetooth ---------------- */
 let nativeOn = false, nativeWait = null;
 window.onNativeData = txt => feed(txt);
+window.onNativeBtLog = message => log('bt: ' + message);
 window.onNativeState = st => {
   log("bt: " + st);
   if (st === "connected") { nativeOn = true; if (nativeWait) { nativeWait.res(); nativeWait = null; } }
@@ -681,17 +682,33 @@ function pickDevice(){
     $("modal").style.display = "flex";
   }).finally(() => { $("modalYes").style.display = ""; });
 }
+let nativeConnecting = false;
 async function connectNative(forcePick){
+  if (nativeConnecting) return;
+  nativeConnecting = true;
   unlockAudio();
+  let timer;
   try {
     let mac = forcePick ? "" : Android.btLast();
     if (!mac) mac = await pickDevice();
     if (!mac) { setStatus("Сканер не выбран. Спарь его в настройках Bluetooth магнитолы.", ""); return; }
     setStatus("Подключаюсь к сканеру…", "busy");
-    await new Promise((res, rej) => { nativeWait = {res, rej}; Android.btConnect(mac); setTimeout(() => { if (nativeWait) { nativeWait = null; rej(new Error("нет ответа")); } }, 15000); });
+    await new Promise((res, rej) => {
+      nativeWait = {res, rej};
+      timer = setTimeout(() => {
+        nativeWait = null;
+        Android.btClose();
+        rej(new Error("Bluetooth не подключился за 60 секунд"));
+      }, 60000);
+      polling = false;
+      nativeOn = false;
+      Android.btConnect(mac);
+    });
+    clearTimeout(timer);
     demo = false; dev = {name: "OBDII"};
     await startSession();
   } catch(e) { setStatus("Не удалось подключиться: " + (e.message || e), ""); log("native: " + e); }
+  finally { clearTimeout(timer); nativeWait = null; nativeConnecting = false; }
 }
 
 const SPP = "00001101-0000-1000-8000-00805f9b34fb";
@@ -1441,7 +1458,7 @@ if (NATIVE) {
   $("setAuto").value = Android.getAutostart() ? "1" : "0";
   $("setAuto").onchange = e => Android.setAutostart(e.target.value === "1");
   $("btnOverlay").onclick = () => Android.requestOverlay();
-  $("btnPickDev").onclick = () => { polling = false; try { Android.btClose(); } catch(e){} connectNative(true); };
+  $("btnPickDev").onclick = () => { if (nativeConnecting) return; polling = false; try { Android.btClose(); } catch(e){} connectNative(true); };
   $("appVer").textContent = "Версия приложения: " + Android.version();
   appList().forEach(a => { const o = document.createElement("option"); o.value = a.pkg; o.textContent = a.name; $("setMusic").appendChild(o); });
   $("setMusic").value = S.musicPkg; $("setMusic").onchange = e => { S.musicPkg = e.target.value; saveS(); };
